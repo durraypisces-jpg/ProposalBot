@@ -18,17 +18,17 @@ so it can be demonstrated before the client's systems are connected.
 pip install -r requirements.txt
 
 # Option A: offline demo (standard reports only, no API key needed)
-RA_DEMO_MODE=1 uvicorn reporting_assistant.app:app --reload
+RA_DEMO_MODE=1 python -m uvicorn reporting_assistant.app:app --reload
 
 # Option B: full assistant with Claude (any plain-English request)
 export ANTHROPIC_API_KEY=...        # or sign in with `ant auth login`
-uvicorn reporting_assistant.app:app --reload
+python -m uvicorn reporting_assistant.app:app --reload
 
 # Option C: full assistant with Grok (xAI)
 export RA_PROVIDER=grok
 export XAI_API_KEY=...              # from console.x.ai
 export RA_GROK_MODEL=...            # a model name from the Models page of console.x.ai
-uvicorn reporting_assistant.app:app --reload
+python -m uvicorn reporting_assistant.app:app --reload
 ```
 
 Grok and Claude get the same instructions, schema and guardrails. Only the model that writes the query and

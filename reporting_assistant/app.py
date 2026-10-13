@@ -1,6 +1,6 @@
 """Web API and portal (proposal section 7: user portal + report generator).
 
-Run with:  uvicorn reporting_assistant.app:app --reload
+Run with:  python -m uvicorn reporting_assistant.app:app --reload
 """
 
 from __future__ import annotations

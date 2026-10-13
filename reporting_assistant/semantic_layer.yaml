@@ -1,0 +1,197 @@
+# Semantic layer: the business meaning of every table, column and metric the
+# assistant may use (proposal section 7). New tables, metrics, roles and
+# templates are added here, not in code (NFR "Maintainability").
+
+reporting_currency: USD
+
+fiscal_calendar:
+  # FR-15. The fiscal year starts in July and is named after the calendar
+  # year in which it ends: FY2026 = July 2025 to June 2026.
+  start_month: 7
+  naming: "Fiscal year named after its end year (FY2026 = Jul 2025 - Jun 2026)"
+  periods: "12 monthly periods; period 1 = July, period 12 = June; quarters of 3 periods"
+
+business_rules:
+  - "FR-15: Words like 'this year', 'last year', 'Q2', 'this period' and 'last period' refer to the FISCAL calendar. Resolve them with the fiscal_periods view and today's date."
+  - "FR-16: Report money in USD (amount_usd) unless the user asks for local currency. Never convert currencies yourself; amount_usd was converted with the ERP's average monthly rate."
+  - "FR-17: For consolidated (group-wide) P&L figures use gl_consolidated_monthly, which already excludes intercompany transactions. Never add up gl_monthly across entities to produce a consolidated figure. Per-entity questions use gl_monthly."
+  - "FR-18: P&L and budget-vs-actual questions with no period given default to the last CLOSED fiscal period (fiscal_periods.is_closed = 1)."
+  - "FR-19: Amounts are stored with a positive natural sign: revenue, cost of sales and operating expenses are all positive. Gross profit = revenue - cost_of_sales. Operating profit = revenue - cost_of_sales - operating_expenses."
+  - "Stock value = qty_on_hand * products.unit_cost. The latest stock position is the row with the most recent snapshot_date."
+  - "A slow-moving item has had no OUT movement in the last 90 days. A reorder alert is an item whose latest qty_on_hand is at or below products.reorder_level."
+
+views:
+  sites:
+    domain: inventory
+    source: src_sites
+    row_filter: site_id
+    description: "Warehouses and stores."
+    columns:
+      site_id: "Site code, e.g. WH-NORTH"
+      site_name: "Display name"
+      region: "Region of the site"
+
+  products:
+    domain: inventory
+    source: src_products
+    description: "Item master."
+    columns:
+      sku: "Stock keeping unit (item code)"
+      product_name: "Item name"
+      category: "Product category"
+      unit_cost: "Standard unit cost in USD"
+      reorder_level: "Quantity at or below which the item should be reordered"
+      supplier: "Main supplier"
+
+  stock_levels:
+    domain: inventory
+    source: src_stock_levels
+    row_filter: site_id
+    description: "Stock on hand per site and item. Month-end snapshots plus one snapshot for today."
+    columns:
+      snapshot_date: "Date of the snapshot (YYYY-MM-DD)"
+      site_id: "Site code"
+      sku: "Item code"
+      qty_on_hand: "Units on hand"
+
+  stock_movements:
+    domain: inventory
+    source: src_stock_movements
+    row_filter: site_id
+    description: "Every stock movement. IN = receipt, OUT = issue or sale, ADJ = stock count adjustment (signed)."
+    columns:
+      movement_date: "Date of the movement (YYYY-MM-DD)"
+      site_id: "Site code"
+      sku: "Item code"
+      movement_type: "IN, OUT or ADJ"
+      qty: "Units moved (positive for IN and OUT; signed for ADJ)"
+      unit_cost: "Unit cost in USD at the time of the movement"
+
+  fiscal_periods:
+    domain: shared
+    source: src_fiscal_periods
+    description: "Fiscal calendar (FR-15) and period close status (FR-18)."
+    columns:
+      fiscal_year: "Fiscal year number, e.g. 2026"
+      fiscal_period: "1-12, period 1 = July"
+      fiscal_quarter: "1-4"
+      start_date: "First calendar day of the period (YYYY-MM-DD)"
+      end_date: "Last calendar day of the period (YYYY-MM-DD)"
+      is_closed: "1 if the period is closed in the ERP, 0 if still open (figures provisional)"
+
+  entities:
+    domain: finance
+    source: src_entities
+    row_filter: entity_id
+    description: "Legal entities and their local currency."
+    columns:
+      entity_id: "Entity code"
+      entity_name: "Legal entity name"
+      currency: "Local (functional) currency"
+
+  accounts:
+    domain: finance
+    source: src_accounts
+    description: "Chart of accounts mapped to report lines (FR-19), approved by finance."
+    columns:
+      account_code: "GL account code"
+      account_name: "Account name"
+      report_line: "revenue, cost_of_sales, operating_expenses or intercompany"
+      account_type: "income or expense"
+
+  fx_rates:
+    domain: finance
+    source: src_fx_rates
+    description: "ERP exchange rates per fiscal period (FR-16). rate_to_usd = USD per 1 unit of local currency."
+    columns:
+      fiscal_year: "Fiscal year"
+      fiscal_period: "Fiscal period"
+      currency: "Currency code"
+      avg_rate_to_usd: "Average rate for the period (used for P&L)"
+      closing_rate_to_usd: "Period-end rate"
+
+  gl_monthly:
+    domain: finance
+    source: src_gl_monthly
+    row_filter: entity_id
+    description: "Actual P&L per entity, department, account and fiscal period."
+    columns:
+      fiscal_year: "Fiscal year"
+      fiscal_period: "Fiscal period"
+      entity_id: "Entity code"
+      department: "Department"
+      account_code: "GL account code"
+      report_line: "revenue, cost_of_sales, operating_expenses or intercompany"
+      amount_local: "Amount in the entity's local currency (positive natural sign)"
+      currency: "Local currency code"
+      amount_usd: "Amount converted to USD at the ERP average rate"
+
+  budget_monthly:
+    domain: finance
+    source: src_budget_monthly
+    row_filter: entity_id
+    description: "Approved budget per entity, department, account and fiscal period."
+    columns:
+      fiscal_year: "Fiscal year"
+      fiscal_period: "Fiscal period"
+      entity_id: "Entity code"
+      department: "Department"
+      account_code: "GL account code"
+      report_line: "revenue, cost_of_sales or operating_expenses"
+      amount_usd: "Budget amount in USD"
+
+  gl_consolidated_monthly:
+    domain: finance
+    source: src_gl_consolidated_monthly
+    consolidated: true
+    description: "Group P&L consolidated by the ERP, intercompany already eliminated (FR-17)."
+    columns:
+      fiscal_year: "Fiscal year"
+      fiscal_period: "Fiscal period"
+      report_line: "revenue, cost_of_sales or operating_expenses"
+      account_code: "GL account code"
+      amount_usd: "Consolidated amount in USD"
+
+roles:
+  # Proposal section 4. "row_filters" restrict rows by the user's own sites or
+  # entities; "domains" restrict which views are visible at all.
+  warehouse_manager:
+    label: "Warehouse or store manager"
+    domains: [inventory]
+    row_filters: {site_id: sites}
+  ops_lead:
+    label: "Operations or procurement lead"
+    domains: [inventory]
+  finance_user:
+    label: "Finance user"
+    domains: [finance]
+    row_filters: {entity_id: entities}
+    consolidated: false
+  executive:
+    label: "Executive"
+    domains: [inventory, finance]
+    consolidated: true
+  admin:
+    label: "Administrator"
+    domains: [inventory, finance]
+    consolidated: true
+    can_administer: true
+
+# Demo users stand in for single sign-on (FR-01) until the client's identity
+# provider is connected.
+demo_users:
+  - {username: amina, name: "Amina (North warehouse)", role: warehouse_manager, sites: [WH-NORTH]}
+  - {username: omar, name: "Omar (Operations)", role: ops_lead}
+  - {username: sara, name: "Sara (Finance, Pakistan entity)", role: finance_user, entities: [PK01]}
+  - {username: david, name: "David (CEO)", role: executive}
+  - {username: admin, name: "System administrator", role: admin}
+
+# FR-11: standard report templates alongside free-form requests.
+templates:
+  - {id: stock-on-hand, domain: inventory, title: "Stock on hand by site", prompt: "Show current stock value by site as a bar chart"}
+  - {id: reorder-alerts, domain: inventory, title: "Reorder alerts", prompt: "List items at or below their reorder level today, by site"}
+  - {id: slow-moving, domain: inventory, title: "Slow-moving stock", prompt: "Which items have had no sales in the last 90 days, and what is their stock value?"}
+  - {id: monthly-movements, domain: inventory, title: "Monthly stock movements", prompt: "Show units received and issued per month for the last 12 months"}
+  - {id: pnl-summary, domain: finance, title: "P&L summary, last closed period", prompt: "Give me a P&L summary for the last closed period: revenue, cost of sales, operating expenses and operating profit"}
+  - {id: budget-vs-actual, domain: finance, title: "Budget vs actual by department", prompt: "Budget versus actual operating expenses by department for this fiscal year to date"}
+  - {id: revenue-trend, domain: finance, title: "Revenue trend", prompt: "Monthly revenue in USD for the last 12 closed periods as a line chart"}

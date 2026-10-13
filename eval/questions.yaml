@@ -1,0 +1,124 @@
+# Gate test question set (proposal sections 8 and 13; NFR "Regression testing").
+#
+# Each question has the SQL a finance or operations expert agrees is correct.
+# The runner asks the assistant, runs both queries as the same user, and
+# compares the numbers. In discovery, replace these with 100+ questions taken
+# from reports the client already trusts.
+#
+# "gate" is the gate the question counts towards: 2 = inventory pilot (95%),
+# 3 = finance reports (98%).
+
+- id: inv-stock-value-by-site
+  gate: 2
+  user: omar
+  question: "What is the current stock value by site?"
+  expected_sql: >
+    SELECT l.site_id, ROUND(SUM(l.qty_on_hand * p.unit_cost), 2) AS stock_value
+    FROM stock_levels l JOIN products p ON p.sku = l.sku
+    WHERE l.snapshot_date = (SELECT MAX(snapshot_date) FROM stock_levels)
+    GROUP BY l.site_id
+
+- id: inv-own-site-units
+  gate: 2
+  user: amina
+  question: "How many units do we have on hand in total right now?"
+  expected_sql: >
+    SELECT SUM(qty_on_hand) AS units FROM stock_levels
+    WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM stock_levels)
+
+- id: inv-reorder-count
+  gate: 2
+  user: omar
+  question: "How many item and site combinations are at or below their reorder level today?"
+  expected_sql: >
+    SELECT COUNT(*) AS items FROM stock_levels l JOIN products p ON p.sku = l.sku
+    WHERE l.snapshot_date = (SELECT MAX(snapshot_date) FROM stock_levels)
+      AND l.qty_on_hand <= p.reorder_level
+
+- id: inv-issued-by-category-last-month
+  gate: 2
+  user: omar
+  question: "Units issued by product category last calendar month"
+  expected_sql: >
+    SELECT p.category, SUM(m.qty) AS units_issued FROM stock_movements m JOIN products p ON p.sku = m.sku
+    WHERE m.movement_type = 'OUT'
+      AND strftime('%Y-%m', m.movement_date) = strftime('%Y-%m', date('now', 'start of month', '-1 month'))
+    GROUP BY p.category
+
+- id: inv-slow-moving-count
+  gate: 2
+  user: omar
+  question: "How many SKUs have had no sales at any site in the last 90 days?"
+  expected_sql: >
+    SELECT COUNT(*) AS slow_moving FROM products p
+    WHERE NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.sku = p.sku AND m.movement_type = 'OUT'
+                      AND m.movement_date >= date('now', '-90 days'))
+
+- id: inv-receipts-by-site-ytd
+  gate: 2
+  user: omar
+  question: "Units received per site this fiscal year to date"
+  expected_sql: >
+    SELECT m.site_id, SUM(m.qty) AS units_received FROM stock_movements m
+    WHERE m.movement_type = 'IN'
+      AND m.movement_date >= (SELECT MIN(start_date) FROM fiscal_periods
+                              WHERE fiscal_year = (SELECT fiscal_year FROM fiscal_periods
+                                                   WHERE date('now') BETWEEN start_date AND end_date))
+    GROUP BY m.site_id
+
+- id: fin-consolidated-revenue-last-closed
+  gate: 3
+  user: david
+  question: "Group consolidated revenue for the last closed period"
+  expected_sql: >
+    SELECT ROUND(SUM(amount_usd), 2) AS revenue FROM gl_consolidated_monthly
+    WHERE report_line = 'revenue' AND (fiscal_year * 100 + fiscal_period) =
+      (SELECT MAX(fiscal_year * 100 + fiscal_period) FROM fiscal_periods WHERE is_closed = 1)
+
+- id: fin-entity-opex-local
+  gate: 3
+  user: sara
+  question: "Operating expenses last closed period in local currency"
+  expected_sql: >
+    SELECT ROUND(SUM(amount_local), 2) AS opex_local FROM gl_monthly
+    WHERE report_line = 'operating_expenses' AND (fiscal_year * 100 + fiscal_period) =
+      (SELECT MAX(fiscal_year * 100 + fiscal_period) FROM fiscal_periods WHERE is_closed = 1)
+
+- id: fin-operating-profit-by-quarter
+  gate: 3
+  user: david
+  question: "Consolidated operating profit by fiscal quarter for fiscal year 2026"
+  expected_sql: >
+    SELECT f.fiscal_quarter,
+           ROUND(SUM(CASE WHEN c.report_line = 'revenue' THEN c.amount_usd ELSE -c.amount_usd END), 2) AS operating_profit
+    FROM gl_consolidated_monthly c
+    JOIN fiscal_periods f ON f.fiscal_year = c.fiscal_year AND f.fiscal_period = c.fiscal_period
+    WHERE c.fiscal_year = 2026
+    GROUP BY f.fiscal_quarter
+
+- id: fin-budget-vs-actual-dept
+  gate: 3
+  user: sara
+  question: "Budget versus actual operating expenses in USD by department for fiscal year 2026"
+  expected_sql: >
+    SELECT a.department, a.actual, b.budget FROM
+      (SELECT department, ROUND(SUM(amount_usd), 2) AS actual FROM gl_monthly
+       WHERE fiscal_year = 2026 AND report_line = 'operating_expenses' GROUP BY department) a
+    JOIN (SELECT department, ROUND(SUM(amount_usd), 2) AS budget FROM budget_monthly
+          WHERE fiscal_year = 2026 AND report_line = 'operating_expenses' GROUP BY department) b
+      ON a.department = b.department
+
+- id: fin-revenue-by-entity-q1
+  gate: 3
+  user: david
+  question: "Revenue in USD by entity for Q1 of fiscal 2027"
+  expected_sql: >
+    SELECT entity_id, ROUND(SUM(amount_usd), 2) AS revenue FROM gl_monthly
+    WHERE report_line = 'revenue' AND fiscal_year = 2027 AND fiscal_period BETWEEN 1 AND 3
+    GROUP BY entity_id
+
+- id: fin-decline-for-inventory-role
+  gate: 3
+  user: omar
+  question: "What was our revenue last month?"
+  expect: decline

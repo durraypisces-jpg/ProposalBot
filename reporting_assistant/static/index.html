@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Reporting Assistant</title>
+<link rel="stylesheet" href="/static/style.css">
+<!-- Interactive charts when the CDN is reachable; otherwise the server draws a PNG. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js" async></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+
+<section id="login" class="login" hidden>
+  <div class="login-card">
+    <div class="eyebrow">AI REPORTING ASSISTANT</div>
+    <h1>Sign in</h1>
+    <p class="muted">Single sign-on connects here in production. For this demo, pick a user to see what their role can access.</p>
+    <div id="user-list" class="user-list"></div>
+  </div>
+</section>
+
+<div id="app" class="layout" hidden>
+  <aside class="sidebar">
+    <div class="brand">AI Reporting Assistant</div>
+    <div class="who">
+      <div id="who-name" class="who-name"></div>
+      <div id="who-scope" class="muted small"></div>
+      <button id="sign-out" class="link">Sign out</button>
+    </div>
+    <button id="new-chat" class="button secondary full">New conversation</button>
+
+    <h3>Standard reports</h3>
+    <ul id="templates" class="menu"></ul>
+
+    <h3>Saved reports</h3>
+    <ul id="favourites" class="menu"><li class="muted small">None yet</li></ul>
+
+    <div id="admin-tools" hidden>
+      <h3>Administration</h3>
+      <button id="show-audit" class="link">Audit log</button>
+      <button id="refresh-data" class="link">Refresh data now</button>
+    </div>
+    <div id="data-status" class="muted small status"></div>
+  </aside>
+
+  <main class="main">
+    <div id="messages" class="messages">
+      <div class="empty" id="empty-state">
+        <h2>Ask for a report in plain English</h2>
+        <p class="muted">For example: "Stock value by site", "Which items are below their reorder level?",
+          "Budget vs actual by department this fiscal year". Follow up with "now break it down by month".</p>
+      </div>
+    </div>
+    <form id="composer" class="composer">
+      <textarea id="input" rows="2" placeholder="Ask for a report…" required></textarea>
+      <button class="button" type="submit" id="send">Send</button>
+    </form>
+  </main>
+</div>
+
+<dialog id="audit-dialog">
+  <div class="dialog-head"><h2>Audit log</h2><button class="link" id="close-audit">Close</button></div>
+  <div id="audit-body" class="table-wrap"></div>
+</dialog>
+
+</body>
+</html>

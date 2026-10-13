@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -40,6 +41,10 @@ PROVIDERS = {
 
 class ProviderError(RuntimeError):
     pass
+
+
+RETRY_STATUSES = {429, 500, 502, 503, 504}  # rate limited, or the service is busy
+RETRY_DELAYS = (2.0, 5.0, 10.0, 20.0)       # seconds; free tiers are often briefly overloaded
 
 
 def _strip_fences(text: str) -> str:
@@ -79,7 +84,13 @@ class OpenAICompatiblePlanner:
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         if response_format:
             body["response_format"] = response_format
-        return self.client.post("/chat/completions", json=body, headers=self.headers)
+        for delay in (*RETRY_DELAYS, None):
+            response = self.client.post("/chat/completions", json=body, headers=self.headers)
+            if response.status_code not in RETRY_STATUSES or delay is None:
+                return response
+            retry_after = response.headers.get("retry-after", "")
+            time.sleep(min(float(retry_after), 60.0) if retry_after.replace(".", "", 1).isdigit() else delay)
+        return response
 
     def _text(self, response: httpx.Response) -> str:
         if response.status_code >= 400:

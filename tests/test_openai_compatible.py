@@ -16,6 +16,14 @@ from reporting_assistant.store import AppStore
 from .conftest import TODAY, make_plan
 
 
+@pytest.fixture(autouse=True)
+def no_waiting(monkeypatch):
+    """Retries back off with time.sleep; tests don't need to wait."""
+    sleeps = []
+    monkeypatch.setattr("reporting_assistant.openai_compatible.time.sleep", sleeps.append)
+    return sleeps
+
+
 def fake_api(reply_for, base_url="https://api.example/v1"):
     """A stand-in provider: records each request, answers with reply_for(request, body)."""
     seen = []
@@ -127,3 +135,19 @@ def test_provider_selection(monkeypatch, tmp_path):
     assert isinstance(make_planner(Settings(data_dir=tmp_path, provider="gemini", demo_mode=True)), DemoPlanner)
     with pytest.raises(ValueError):
         make_planner(Settings(data_dir=tmp_path, provider="other"))
+
+
+def test_busy_service_is_retried(no_waiting):
+    replies = iter([httpx.Response(503, json={"error": {"message": "busy"}}),
+                    httpx.Response(429, headers={"retry-after": "3"}, json={"error": {"message": "slow down"}}),
+                    message("Done.")])
+    client, seen = fake_api(lambda req, body: next(replies))
+    assert planner(client).narrate({}) == "Done."
+    assert len(seen) == 3 and no_waiting == [2.0, 3.0]
+
+
+def test_gives_up_after_retries():
+    client, seen = fake_api(lambda req, body: httpx.Response(503, json={"error": {"message": "busy"}}))
+    with pytest.raises(ProviderError, match="503: busy"):
+        planner(client).narrate({})
+    assert len(seen) == 5

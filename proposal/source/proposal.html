@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Reporting Assistant – Proposal & Requirements v1.1</title>
+<style>
+  @page { size: A4; margin: 24mm 20mm 22mm 20mm; }
+  :root { --navy:#1F3A5F; --teal:#1A7F8E; --tint:#E3F1F3; --zebra:#F4F6F8; --rule:#C9D1DA; --ink:#262B33; --quiet:#5B6573; --red:#B03A2E; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#fff; }
+  body { font-family: Carlito, Calibri, "Liberation Sans", sans-serif; font-size: 11pt; line-height: 1.45; color: var(--ink); }
+  h2 { font-size: 17pt; color: var(--navy); margin: 0 0 10pt; padding-bottom: 5pt; border-bottom: 1.2pt solid var(--teal); break-after: avoid; }
+  h3 { font-size: 11.5pt; color: var(--navy); margin: 12pt 0 4pt; break-after: avoid; }
+  p { margin: 0 0 8pt; }
+  section { margin-bottom: 22pt; }
+  .pb { break-before: page; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin-bottom: 2pt; }
+  ol, ul { break-inside: avoid; }
+  ol li::marker { color: var(--teal); font-weight: 700; }
+  ul li::marker { color: var(--teal); }
+  table { width: 100%; border-collapse: collapse; margin: 4pt 0 10pt; font-size: 9.5pt; line-height: 1.35; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th { background: var(--navy); color: #fff; text-align: left; font-weight: 700; padding: 6pt 7pt; }
+  td { padding: 5pt 7pt; border: 0.6pt solid var(--rule); vertical-align: top; }
+  tbody tr:nth-child(even) td { background: var(--zebra); }
+  td.k { font-weight: 700; color: var(--navy); white-space: nowrap; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  tr.total td { font-weight: 700; background: var(--tint) !important; }
+  .must { color: var(--teal); font-weight: 700; }
+  .should { color: var(--navy); font-weight: 700; }
+  .could { color: #7A8796; font-weight: 700; }
+  .high { color: var(--red); font-weight: 700; }
+  .new { display:inline-block; font-size: 7.5pt; font-weight: 700; color: var(--teal); border: 0.7pt solid var(--teal); border-radius: 3pt; padding: 0 3pt; margin-left: 4pt; vertical-align: 1pt; letter-spacing: .03em; }
+  .callout { background: var(--tint); border-left: 4pt solid var(--teal); padding: 9pt 12pt; margin: 10pt 0; font-size: 10pt; break-inside: avoid; }
+  .callout b.t { display:block; color: var(--teal); margin-bottom: 2pt; }
+  .note { font-style: italic; color: var(--quiet); font-size: 10pt; }
+  figure { margin: 8pt 0 12pt; break-inside: avoid; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { text-align: center; font-style: italic; color: var(--quiet); font-size: 9pt; margin-top: 4pt; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; margin: 8pt 0 10pt; }
+  .kpi { border: 0.6pt solid var(--rule); border-top: 3pt solid var(--teal); padding: 7pt 9pt; }
+  .kpi .v { font-size: 15pt; font-weight: 700; color: var(--navy); line-height: 1.15; }
+  .kpi .l { font-size: 9pt; color: var(--quiet); }
+
+  /* Cover */
+  .cover { height: 245mm; padding-top: 38mm; position: relative; }
+  .cover .band { background: var(--navy); color: #fff; padding: 20mm 13mm 14mm; }
+  .cover .eyebrow { font-size: 10pt; letter-spacing: .28em; color: #7FC8D3; font-weight: 700; margin-bottom: 8pt; }
+  .cover h1 { font-size: 30pt; margin: 0 0 10pt; line-height: 1.1; }
+  .cover .sub { font-size: 12pt; color: #DCE6F0; margin: 0; }
+  .cover .bar { height: 4pt; background: var(--teal); margin-top: 4mm; }
+  .cover dl { display: grid; grid-template-columns: 42mm 1fr; row-gap: 6pt; margin: 14mm 0 0; font-size: 11pt; }
+  .cover dt { font-weight: 700; color: var(--navy); }
+  .cover dd { margin: 0; }
+  .cover .conf { position: absolute; bottom: 0; left: 0; font-style: italic; font-size: 9pt; color: var(--quiet); }
+
+  /* Contents */
+  .toc { list-style: none; padding: 0; margin: 0 0 18pt; }
+  .toc li { display: flex; align-items: baseline; margin: 0 0 7pt; }
+  .toc .n { flex: 0 0 auto; }
+  .toc .dots { flex: 1 1 auto; border-bottom: 1.2pt dotted var(--navy); margin: 0 4pt; transform: translateY(-3pt); }
+  .toc .pg { font-weight: 700; color: var(--navy); }
+  .h-contents { font-size: 20pt; color: var(--navy); margin: 0 0 12pt; border: 0; }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="band">
+    <div class="eyebrow">PROPOSAL &amp; REQUIREMENTS</div>
+    <h1>AI Reporting Assistant</h1>
+    <p class="sub">On-demand inventory and financial reports, statistics and charts through plain-language requests</p>
+  </div>
+  <div class="bar"></div>
+  <dl>
+    <dt>Prepared by</dt><dd>Durrayshahwar Zehra</dd>
+    <dt>Prepared for</dt><dd>[Client name]</dd>
+    <dt>Date</dt><dd>13 October 2026</dd>
+    <dt>Version</dt><dd>1.1 – Draft for client review (indicative, subject to discovery)</dd>
+  </dl>
+  <div class="conf">Confidential. Prepared for the named client's evaluation only.</div>
+</div>
+
+<!-- CONTENTS -->
+<div class="pb">
+  <h2 class="h-contents">Contents</h2>
+  <ol class="toc">
+    <!--TOC-->
+  </ol>
+
+  <h3>Revision history</h3>
+  <table>
+    <thead><tr><th style="width:14%">Version</th><th style="width:20%">Date</th><th>Changes</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1.0</td><td>4 October 2026</td><td>First draft for client review.</td></tr>
+      <tr><td class="k">1.1</td><td>13 October 2026</td><td>Adds indicative costs (section 9), support and maintenance (section 10), data freshness and a reporting data store (sections 6–7), measurable finance gate targets (sections 8 and 13), and finance requirements for currencies, entities and fiscal calendars (FR-15 to FR-19). Expands risks and open questions.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 1 -->
+<section class="pb" id="s1" data-toc="1. Executive summary">
+  <h2>1. Executive summary</h2>
+  <p>We propose an AI Reporting Assistant: a secure web portal where authorized users ask for inventory and financial reports in plain language and get back the report, its statistics and its charts within seconds.</p>
+  <p>The solution builds on an existing large language model (LLM) rather than training a new one. The LLM interprets each request, queries the client's own data in read-only mode, and writes the narrative. Every figure comes directly from the client's systems, never from the model.</p>
+  <p>Delivery takes 17 to 23 weeks in four phases: discovery, an inventory pilot, financial reporting, then wider rollout. Each phase ends with a client sign-off gate with a measurable target. A 4-week hypercare period follows go-live, then an optional support plan.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="v">17–23 weeks</div><div class="l">to go-live, plus 4 weeks hypercare</div></div>
+    <div class="kpi"><div class="v">USD 45k–60k</div><div class="l">indicative one-off build, incl. 15% contingency</div></div>
+    <div class="kpi"><div class="v">USD 550–2,400</div><div class="l">indicative running cost per month (cloud-hosted)</div></div>
+  </div>
+  <div class="callout"><b class="t">Basis of this proposal</b>This proposal was prepared before the client's web portal, data sources and required financial reports were known. The report types, technology choices, timeline and costs are indicative. They will be finalized after discovery, once the open questions in section 12 are answered, and may change to fit the facts.</div>
+  <div class="callout"><b class="t">Key design principle</b>The LLM acts as a planner and writer, not a calculator. It turns each request into a database query; every number in a report comes back from the client's own data.</div>
+</section>
+
+<!-- 2 -->
+<section id="s2" data-toc="2. Background and problem statement">
+  <h2>2. Background and problem statement</h2>
+  <p>The client wants people using its systems to get inventory and financial reports on demand, tailored to what each person needs, complete with graphs and statistics.</p>
+  <p>Today, a custom report typically means a request to an analyst or IT team, a wait, and a fixed format. Users who need a different cut of the data, period or comparison must start over. An AI assistant removes that bottleneck while keeping the numbers accurate and access controlled.</p>
+</section>
+
+<!-- 3 -->
+<section id="s3" data-toc="3. Objectives and scope">
+  <h2>3. Objectives and scope</h2>
+  <p>The project lets authorized users self-serve accurate inventory and financial reports, cutting report turnaround from days to minutes.</p>
+  <h3>Objectives</h3>
+  <ol>
+    <li>Answer report requests written in plain English.</li>
+    <li>Return a complete report: narrative summary, key statistics and charts.</li>
+    <li>Export reports to PDF, Word and Excel.</li>
+    <li>Guarantee every figure traces back to the source data.</li>
+    <li>Restrict each user to the data their role permits.</li>
+  </ol>
+  <h3>In scope (indicative report types, to be confirmed in discovery)</h3>
+  <ul>
+    <li>Inventory reporting: stock levels, movements, ageing, slow-moving and fast-moving items, reorder alerts, warehouse comparisons</li>
+    <li>Financial reporting: revenue, expenses, profit and loss summaries, budget versus actual, period comparisons, across currencies, entities and the client's fiscal calendar</li>
+    <li>Web chat portal, report export, role-based access and audit logging</li>
+    <li>Hypercare for 4 weeks after go-live, handover documentation and admin training</li>
+  </ul>
+  <h3>Out of scope (initial release)</h3>
+  <ul>
+    <li>Writing to or changing source data (the system is read-only)</li>
+    <li>Forecasting and predictive analytics (candidate for a later phase)</li>
+    <li>Training a new language model from scratch</li>
+    <li>Calculating consolidation eliminations that the ERP does not already hold (reports use the ERP's consolidated figures)</li>
+    <li>Mobile apps (the portal will be mobile-friendly in the browser)</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section id="s4" data-toc="4. Users and roles">
+  <h2>4. Users and roles</h2>
+  <p>Five roles cover the expected users; the client will confirm the final list.</p>
+  <table>
+    <thead><tr><th style="width:27%">Role</th><th style="width:43%">Typical requests</th><th>Data access</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Warehouse or store manager</td><td>Stock on hand, movements, reorder items for their site</td><td>Inventory, own site only</td></tr>
+      <tr><td class="k">Operations or procurement lead</td><td>Cross-site comparisons, slow-moving stock, supplier trends</td><td>Inventory, all sites</td></tr>
+      <tr><td class="k">Finance user</td><td>P&amp;L, budget vs actual, expense breakdowns</td><td>Financial, by department or entity</td></tr>
+      <tr><td class="k">Executive</td><td>Summaries across inventory and finance</td><td>All data, summary level</td></tr>
+      <tr><td class="k">Administrator</td><td>Manages users, roles, report templates, audit logs</td><td>System settings, no report restriction</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 5 -->
+<section class="pb" id="s5" data-toc="5. Functional requirements">
+  <h2>5. Functional requirements</h2>
+  <p>Priorities follow the MoSCoW method: Must, Should, Could. FR-15 to FR-19 are new in v1.1 and cover financial data that spans currencies, entities and fiscal periods.</p>
+  <table>
+    <thead><tr><th style="width:9%">ID</th><th>Requirement</th><th style="width:15%">Priority</th></tr></thead>
+    <tbody>
+      <tr><td class="k">FR-01</td><td>Users log in with company credentials (single sign-on preferred)</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-02</td><td>Users request reports in plain English through a chat interface</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-03</td><td>The system asks a clarifying question when a request is ambiguous (e.g. missing period or site)</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-04</td><td>Each report includes a narrative summary, key statistics and at least one relevant chart</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-05</td><td>Statistics include totals, averages, minimum and maximum, percentage change and period-over-period variance where relevant</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-06</td><td>Charts include bar, line, pie and table views, chosen to fit the data</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-07</td><td>Users can refine a report in follow-up messages ("now break it down by month")</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-08</td><td>Reports export to PDF, Word and Excel</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-09</td><td>Users see only data their role permits; restricted requests are politely declined</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-10</td><td>Each report shows its data source, filters, date range and a "data as of" timestamp</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-11</td><td>A library of standard report templates sits alongside free-form requests</td><td class="should">Should</td></tr>
+      <tr><td class="k">FR-12</td><td>Users can save and re-run favourite reports</td><td class="should">Should</td></tr>
+      <tr><td class="k">FR-13</td><td>Scheduled reports delivered by email</td><td class="could">Could</td></tr>
+      <tr><td class="k">FR-14</td><td>Interface supports a second language alongside English (to be confirmed)</td><td class="could">Could</td></tr>
+      <tr><td class="k">FR-15<span class="new">NEW</span></td><td><b>Fiscal calendar.</b> "This year", "Q2" and "last period" follow the client's fiscal year and period structure (e.g. July–June, 4-4-5), stored in the semantic layer; each report states the fiscal and calendar dates it covers</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-16<span class="new">NEW</span></td><td><b>Multi-currency.</b> Amounts are reported in the transaction currency or a chosen reporting currency; converted figures use the ERP's own exchange rates, and the report names the rate type (period-end or average) and rate date</td><td class="must">Must, if more than one currency</td></tr>
+      <tr><td class="k">FR-17<span class="new">NEW</span></td><td><b>Multi-entity.</b> Users can report per legal entity or consolidated; consolidated figures come from the ERP's consolidation, never summed by the assistant across entities</td><td class="must">Must, if more than one entity</td></tr>
+      <tr><td class="k">FR-18<span class="new">NEW</span></td><td><b>Period status.</b> Figures from a period that is still open are labelled provisional; reports default to the last closed period for P&amp;L and budget vs actual</td><td class="must">Must</td></tr>
+      <tr><td class="k">FR-19<span class="new">NEW</span></td><td><b>Account mapping.</b> The chart of accounts is mapped to report lines (revenue, cost of sales, operating expenses) once in the semantic layer, approved by finance, with sign conventions fixed</td><td class="must">Must</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6 -->
+<section class="pb" id="s6" data-toc="6. Non-functional requirements">
+  <h2>6. Non-functional requirements</h2>
+  <table>
+    <thead><tr><th style="width:24%">Area</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Accuracy</td><td>All numbers come from database queries, never generated by the LLM; at least 95% of inventory pilot test questions and 98% of finance test questions answered correctly before go-live (section 8)</td></tr>
+      <tr><td class="k">Transparency</td><td>Each report can show the query or logic used, so finance users can verify it</td></tr>
+      <tr><td class="k">Security</td><td>Read-only database accounts; encryption in transit and at rest; role-based and row-level access control</td></tr>
+      <tr><td class="k">Data residency</td><td>Hosting option (cloud API vs private, on-premise model) agreed with the client's IT and compliance teams</td></tr>
+      <tr><td class="k">Data freshness<span class="new">NEW</span></td><td>Reports read from a reporting copy of the data, not the live ERP, unless discovery shows the ERP can take the load. Default targets: inventory refreshed at least hourly, finance refreshed daily. Every report shows its "data as of" time; final targets agreed in discovery</td></tr>
+      <tr><td class="k">Source system load<span class="new">NEW</span></td><td>Queries never run against the live ERP without a time limit (30 seconds) and a row limit; heavy queries are blocked, not queued</td></tr>
+      <tr><td class="k">Auditability</td><td>Log of every user, request, query run and report produced, retained per client policy</td></tr>
+      <tr><td class="k">Performance</td><td>Typical report returned in under 30 seconds</td></tr>
+      <tr><td class="k">Availability</td><td>99% uptime during business hours</td></tr>
+      <tr><td class="k">Scalability</td><td>Supports the client's expected number of concurrent users (to be confirmed)</td></tr>
+      <tr><td class="k">Usability</td><td>Usable without training by staff familiar with the business terms</td></tr>
+      <tr><td class="k">Maintainability</td><td>New tables, metrics and report templates added through configuration, not code changes</td></tr>
+      <tr><td class="k">Regression testing<span class="new">NEW</span></td><td>The agreed test question set is re-run after any change to the model, model version, semantic layer or data schema; a drop below the gate target blocks release</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 7 -->
+<section class="pb" id="s7" data-toc="7. Proposed solution architecture">
+  <h2>7. Proposed solution architecture</h2>
+  <p>A request passes access control, the LLM plans a read-only query against a reporting copy of the data, results are analyzed and charted, and the finished report returns to the user.</p>
+  <figure>
+    <!--ARCH-->
+    <figcaption>Figure 1. Solution architecture – ten components (reporting data store new in v1.1)</figcaption>
+  </figure>
+  <p>The reporting data store is new in v1.1. It is a copy of the ERP data refreshed on a schedule (by default hourly for inventory, daily for finance), so reporting never slows down the live ERP. If the client already has a data warehouse, it fills this role and nothing new is built. Every report shows the time of the last refresh.</p>
+  <table>
+    <thead><tr><th style="width:22%">Component</th><th style="width:43%">What it does</th><th>Technology options (indicative)</th></tr></thead>
+    <tbody>
+      <tr><td class="k">User portal</td><td>Chat interface, report viewer and download</td><td>React or Streamlit web app</td></tr>
+      <tr><td class="k">Access control</td><td>Checks who the user is and what data they may see</td><td>Microsoft Entra ID or other SSO; database row-level security</td></tr>
+      <tr><td class="k">LLM orchestrator</td><td>Interprets requests, asks clarifying questions, writes queries and narrative</td><td>Claude or GPT via API; Llama or Qwen self-hosted for private deployments</td></tr>
+      <tr><td class="k">Semantic layer</td><td>Business definitions of tables, columns and metrics, the fiscal calendar, account mapping and currency rules</td><td>Data dictionary file or semantic modelling tool (e.g. dbt)</td></tr>
+      <tr><td class="k">Query service</td><td>Runs generated SQL with read-only credentials, time and row limits, and validates it first</td><td>Python service with SQL guardrails</td></tr>
+      <tr><td class="k">Analytics and charts</td><td>Calculates statistics and draws graphs</td><td>Python: pandas, Plotly or Matplotlib</td></tr>
+      <tr><td class="k">Report generator</td><td>Assembles summary, statistics and charts into branded reports</td><td>Templates exporting to PDF, Word and Excel</td></tr>
+      <tr><td class="k">Audit log</td><td>Records each user, request, query and report</td><td>Database table or logging platform</td></tr>
+      <tr><td class="k">Reporting data store<span class="new">NEW</span></td><td>Scheduled read-only copy of ERP data used for all reporting</td><td>Client's existing data warehouse, or PostgreSQL / SQL Server replica</td></tr>
+      <tr><td class="k">Client data sources</td><td>Existing inventory and finance systems</td><td>Client's ERP, databases or data warehouse</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Final technology choices depend on the client's existing web portal, data sources and hosting requirements, and will be confirmed after discovery.</p>
+</section>
+
+<!-- 8 -->
+<section class="pb" id="s8" data-toc="8. Delivery approach and phases">
+  <h2>8. Delivery approach and phases</h2>
+  <p>We recommend four phases over roughly 17 to 23 weeks, starting with an inventory pilot because it carries lower risk than financial data, followed by 4 weeks of hypercare.</p>
+  <figure>
+    <!--ROAD-->
+    <figcaption>Figure 2. Delivery roadmap – four phases, three sign-off gates, then hypercare</figcaption>
+  </figure>
+  <p>Gate 3 is stricter than Gate 2 because wrong financial figures carry the highest risk. Finance supplies the test questions and expected answers from reports it already trusts. Durations are indicative and will be confirmed after discovery; the client approves each gate before the next phase starts.</p>
+</section>
+
+<!-- 9 -->
+<section class="pb" id="s9" data-toc="9. Indicative costs">
+  <h2>9. Indicative costs</h2>
+  <p>The one-off build is about 40 to 53 person-weeks including hypercare, or USD 45,000 to 60,000 with contingency. Running costs are about USD 550 to 2,400 a month for a cloud-hosted setup. All figures are indicative and will be re-priced after discovery.</p>
+  <h3>One-off build</h3>
+  <table>
+    <thead><tr><th>Phase</th><th>Duration</th><th class="num">Avg. team (FTE)</th><th class="num">Effort (person-weeks)</th><th class="num">Cost (USD)</th></tr></thead>
+    <tbody>
+      <tr><td class="k">0 · Discovery</td><td>2–3 weeks</td><td class="num">1.5</td><td class="num">3–4.5</td><td class="num">3,000–4,500</td></tr>
+      <tr><td class="k">1 · Inventory pilot</td><td>6–8 weeks</td><td class="num">2.5</td><td class="num">15–20</td><td class="num">15,000–20,000</td></tr>
+      <tr><td class="k">2 · Finance reports</td><td>6–8 weeks</td><td class="num">2.5</td><td class="num">15–20</td><td class="num">15,000–20,000</td></tr>
+      <tr><td class="k">3 · Rollout</td><td>3–4 weeks</td><td class="num">1.5</td><td class="num">4.5–6</td><td class="num">4,500–6,000</td></tr>
+      <tr><td class="k">Hypercare</td><td>4 weeks after go-live</td><td class="num">0.5</td><td class="num">2</td><td class="num">2,000</td></tr>
+      <tr><td class="k">Subtotal</td><td></td><td></td><td class="num">39.5–52.5</td><td class="num">39,500–52,500</td></tr>
+      <tr><td class="k">Contingency (15%)</td><td></td><td></td><td></td><td class="num">5,900–7,900</td></tr>
+      <tr class="total"><td>Total build</td><td></td><td></td><td></td><td class="num">about 45,000–60,000</td></tr>
+    </tbody>
+  </table>
+  <p>The team is a solution lead, one to two developers, and a part-time data analyst for testing. Discovery can be priced and signed on its own, so the client commits to the full build only after Gate 1.</p>
+  <h3>Monthly running costs (cloud-hosted, about 50 users and 10,000 requests a month)</h3>
+  <table>
+    <thead><tr><th>Item</th><th class="num" style="width:30%">Approx. cost per month (USD)</th></tr></thead>
+    <tbody>
+      <tr><td>LLM API usage (depends on model choice and caching of repeat reports)</td><td class="num">300–1,500</td></tr>
+      <tr><td>Application hosting: portal, services, audit log, storage</td><td class="num">150–400</td></tr>
+      <tr><td>Reporting data store, if the client does not already have one</td><td class="num">100–500</td></tr>
+      <tr class="total"><td>Total</td><td class="num">about 550–2,400</td></tr>
+    </tbody>
+  </table>
+  <p>A private, self-hosted model replaces the LLM API line with a GPU server, typically USD 1,500–3,500 a month rented, or a one-off hardware purchase. Support after hypercare is priced separately in section 10.</p>
+  <h3>Pricing assumptions</h3>
+  <ul>
+    <li>Effort is priced at a blended rate of USD 1,000 per person-week (USD 25 an hour), to be confirmed in the final quotation.</li>
+    <li>LLM and cloud prices are approximate as of October 2026 and change often; they will be re-quoted from current provider price lists at contracting.</li>
+    <li>Client-side licences (ERP, SSO, Microsoft 365) and client staff time are not included.</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section class="pb" id="s10" data-toc="10. Support and maintenance after go-live">
+  <h2>10. Support and maintenance after go-live</h2>
+  <p>The build price includes 4 weeks of hypercare after go-live; after that, the client chooses a monthly support plan or takes over support in-house using the handover pack.</p>
+  <h3>Hypercare (included, 4 weeks)</h3>
+  <ul>
+    <li>Daily monitoring of errors, response times and failed or declined requests</li>
+    <li>Fixes to wrong or unclear answers, and semantic layer tuning from real user questions</li>
+    <li>Weekly check-in with the client's admin and finance lead</li>
+  </ul>
+  <h3>Monthly support plans (optional, after hypercare)</h3>
+  <table>
+    <thead><tr><th style="width:18%">Plan</th><th>Effort included</th><th class="num" style="width:26%">Indicative cost per month</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Basic</td><td>2 days a month</td><td class="num">USD 400</td></tr>
+      <tr><td class="k">Standard</td><td>4 days a month, plus up to 2 new report templates</td><td class="num">USD 800</td></tr>
+    </tbody>
+  </table>
+  <p>Both plans cover:</p>
+  <ul>
+    <li>Incident response to the service levels below</li>
+    <li>Updates when the LLM provider retires or changes a model version, with the full test question set re-run before release</li>
+    <li>Semantic layer and query updates when the ERP or database schema changes</li>
+    <li>Security patches and dependency updates</li>
+    <li>A monthly usage and running-cost report</li>
+  </ul>
+  <h3>Service levels (business hours)</h3>
+  <table>
+    <thead><tr><th style="width:11%">Priority</th><th>Example</th><th style="width:16%">Response</th><th style="width:24%">Target fix or workaround</th></tr></thead>
+    <tbody>
+      <tr><td class="k">P1</td><td>Portal down, or a user sees data outside their role</td><td>4 hours</td><td>1 business day</td></tr>
+      <tr><td class="k">P2</td><td>A report returns wrong figures</td><td>1 business day</td><td>3 business days</td></tr>
+      <tr><td class="k">P3</td><td>Enhancement or new report request</td><td>3 business days</td><td>Next scheduled release</td></tr>
+    </tbody>
+  </table>
+  <h3>Client responsibilities</h3>
+  <ul>
+    <li>A named administrator who manages users, roles and templates</li>
+    <li>Data owners give at least 2 weeks' notice of ERP or schema changes</li>
+    <li>Finance approves any change to a metric definition or account mapping</li>
+  </ul>
+  <h3>Handover pack</h3>
+  <p>Architecture and runbook documentation, the semantic layer and test question set (owned by the client), and two admin training sessions.</p>
+</section>
+
+<!-- 11 -->
+<section class="pb" id="s11" data-toc="11. Risks and mitigations">
+  <h2>11. Risks and mitigations</h2>
+  <table>
+    <thead><tr><th style="width:31%">Risk</th><th style="width:18%">Impact</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>LLM misreads a request and queries the wrong data</td><td>Wrong report</td><td>Semantic layer defining every metric; clarifying questions; report shows filters and date range used</td></tr>
+      <tr><td>Incorrect financial figures reach decision-makers</td><td class="high">High</td><td>Numbers only from queries; Gate 3 reconciliation against the trial balance; query visible to finance users</td></tr>
+      <tr><td>Users access data beyond their role</td><td class="high">High</td><td>Role and row-level security enforced in the database layer, not just the prompt</td></tr>
+      <tr><td>Sensitive data sent to an external AI provider</td><td>Compliance breach</td><td>Private hosting option, or a provider agreement with zero data retention</td></tr>
+      <tr><td>Poor data quality in source systems</td><td>Misleading reports</td><td>Data quality review in discovery; known gaps flagged in reports</td></tr>
+      <tr><td>Currency, entity or fiscal period handled wrongly<span class="new">NEW</span></td><td>Wrong financial totals</td><td>FR-15 to FR-19: ERP exchange rates and consolidation only, fiscal calendar in the semantic layer, test questions for each case</td></tr>
+      <tr><td>Reporting queries slow down the live ERP<span class="new">NEW</span></td><td>Disruption to operations</td><td>Reporting data store; time and row limits on every query</td></tr>
+      <tr><td>Users act on stale data<span class="new">NEW</span></td><td>Decisions on out-of-date figures</td><td>"Data as of" time on every report; refresh failures alerted to the admin</td></tr>
+      <tr><td>LLM provider changes or retires a model version<span class="new">NEW</span></td><td>Accuracy drops without warning</td><td>Pinned model versions; full test set re-run before any switch (section 10)</td></tr>
+      <tr><td>Low user adoption</td><td>Low return on investment</td><td>Standard templates for common reports; short demos; feedback loop in the pilot</td></tr>
+      <tr><td>Running costs grow with usage</td><td>Budget overrun</td><td>Usage monitoring, caching of repeat reports, model choice by task; monthly cost report</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 12 -->
+<section class="pb" id="s12" data-toc="12. Assumptions, dependencies and open questions">
+  <h2>12. Assumptions, dependencies and open questions</h2>
+  <h3>Assumptions and dependencies</h3>
+  <ul>
+    <li>The client provides read-only access to its inventory and finance data sources.</li>
+    <li>A client contact from IT, finance and operations is available for discovery and pilot testing.</li>
+    <li>Reports cover structured data held in databases or an ERP, not scanned documents.</li>
+    <li>Exchange rates and consolidated figures already exist in the ERP; the assistant reads them and does not calculate them.</li>
+    <li>Finance provides at least 100 test questions with known correct answers, taken from existing reports, before Phase 2 testing starts.</li>
+  </ul>
+  <h3>Open questions for the client</h3>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:58%">Question</th><th>Client response</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1</td><td>Which systems hold inventory and financial data (ERP name, databases, spreadsheets)?</td><td></td></tr>
+      <tr><td class="k">2</td><td>Can data be processed by a cloud AI service, or must everything stay on-premise?</td><td></td></tr>
+      <tr><td class="k">3</td><td>Who are the users: internal staff only, or also external users such as partners or customers?</td><td></td></tr>
+      <tr><td class="k">4</td><td>How many users, and how many concurrent users, are expected?</td><td></td></tr>
+      <tr><td class="k">5</td><td>Which 10 to 20 reports are requested most often today?</td><td></td></tr>
+      <tr><td class="k">6</td><td>Is there an existing login system (e.g. Microsoft Entra ID) to integrate with?</td><td></td></tr>
+      <tr><td class="k">7</td><td>Is branding required on exported reports?</td><td></td></tr>
+      <tr><td class="k">8</td><td>Is a second interface language required?</td><td></td></tr>
+      <tr><td class="k">9</td><td>What are the budget range and target go-live date?</td><td></td></tr>
+      <tr><td class="k">10</td><td>What is the existing web portal or website, and should the assistant be embedded in it or run as a separate portal?</td><td></td></tr>
+      <tr><td class="k">11</td><td>Which financial reports are required (e.g. P&amp;L, balance sheet, cash flow, budget vs actual, receivables, payables), and at what level of detail?</td><td></td></tr>
+      <tr><td class="k">12</td><td>Which inventory reports are required, and for which sites or warehouses?</td><td></td></tr>
+      <tr><td class="k">13<span class="new">NEW</span></td><td>How current must reports be: real time, hourly, or as of the previous day?</td><td></td></tr>
+      <tr><td class="k">14<span class="new">NEW</span></td><td>Is there already a data warehouse or reporting copy of the ERP, or should one be set up?</td><td></td></tr>
+      <tr><td class="k">15<span class="new">NEW</span></td><td>How many currencies and legal entities are there, and does the ERP already produce consolidated figures?</td><td></td></tr>
+      <tr><td class="k">16<span class="new">NEW</span></td><td>What is the fiscal year (start month) and period structure (calendar months, 4-4-5, 13 periods)?</td><td></td></tr>
+      <tr><td class="k">17<span class="new">NEW</span></td><td>When is each month closed, and how are open versus closed periods marked in the ERP?</td><td></td></tr>
+      <tr><td class="k">18<span class="new">NEW</span></td><td>After hypercare, will support be in-house or under a support plan, and who will be the system administrator?</td><td></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 13 -->
+<section class="pb" id="s13" data-toc="13. Success criteria, next steps and approval">
+  <h2>13. Success criteria, next steps and approval</h2>
+  <p>Each phase must meet its own measures before the next one starts.</p>
+  <table>
+    <thead><tr><th>Measure</th><th style="width:22%">Inventory pilot (Gate 2)</th><th style="width:25%">Finance reports (Gate 3)</th></tr></thead>
+    <tbody>
+      <tr><td>Correct answers on the agreed test question set</td><td>95% or higher</td><td>98% or higher, on at least 100 questions</td></tr>
+      <tr><td>Totals reconciled to the source for closed periods (P&amp;L lines vs trial balance, stock value vs ledger)</td><td>Not measured</td><td>100% match</td></tr>
+      <tr><td>Currency, entity and fiscal-period test cases passed</td><td>Not measured</td><td>100%</td></tr>
+      <tr><td>Typical report turnaround</td><td>Under 30 seconds</td><td>Under 30 seconds</td></tr>
+      <tr><td>Pilot users who rate it useful</td><td>80% or higher</td><td>80% or higher</td></tr>
+      <tr><td>Unauthorized data access incidents</td><td>Zero</td><td>Zero</td></tr>
+      <tr><td>Signed off by</td><td>Operations lead</td><td>Finance controller or CFO</td></tr>
+    </tbody>
+  </table>
+  <h3>Next steps</h3>
+  <ol>
+    <li>Client reviews this proposal and answers the open questions.</li>
+    <li>Discovery workshop to map data sources, data freshness needs and priority reports.</li>
+    <li>Revise this proposal with the confirmed report catalogue, technology stack, hosting model, budget and timeline.</li>
+    <li>Start Phase 1 pilot on inventory reporting.</li>
+  </ol>
+  <h3>Approval</h3>
+  <table>
+    <thead><tr><th style="width:20%"></th><th>Client</th><th>Provider</th></tr></thead>
+    <tbody>
+      <tr><td class="k" style="height:30pt">Name</td><td></td><td>Durrayshahwar Zehra</td></tr>
+      <tr><td class="k" style="height:30pt">Signature</td><td></td><td></td></tr>
+      <tr><td class="k" style="height:30pt">Date</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</body>
+</html>

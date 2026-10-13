@@ -1,0 +1,36 @@
+<svg viewBox="0 0 760 600" xmlns="http://www.w3.org/2000/svg" font-family="Carlito, Calibri, sans-serif" role="img" aria-label="Solution architecture">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8A96A3"/></marker></defs>
+<rect x="0" y="0" width="760" height="600" fill="#F7F8FA"/>
+<g fill="none" stroke="#8A96A3" stroke-width="1.3" marker-end="url(#a)">
+<path d="M380 80V120"/><path d="M280 148H224"/><path d="M380 176V216"/><path d="M224 252H280"/>
+<path d="M380 288V328"/><path d="M380 384V424"/><path d="M380 520V480"/><path d="M480 356H536"/>
+<path d="M672 328V176"/><path d="M480 252H600V176"/><path d="M636 120V52H480"/>
+</g>
+<g font-size="11" font-style="italic" fill="#6B7684">
+<text x="388" y="104">request</text><text x="252" y="140" text-anchor="middle">logs</text>
+<text x="388" y="312">SQL</text><text x="388" y="408">read-only</text><text x="388" y="504">scheduled refresh (hourly / daily)</text>
+<text x="540" y="244" text-anchor="middle">narrative</text><text x="558" y="44" text-anchor="middle">PDF, Word, Excel</text>
+<text x="664" y="296" text-anchor="end">stats, charts</text>
+</g>
+<g stroke="#9AA5B1" stroke-width="1.2" fill="#FFFFFF">
+<rect x="280" y="24" width="200" height="56" rx="7"/>
+<rect x="280" y="120" width="200" height="56" rx="7"/><rect x="24" y="120" width="200" height="56" rx="7"/><rect x="536" y="120" width="200" height="56" rx="7"/>
+<rect x="24" y="216" width="200" height="72" rx="7"/>
+<rect x="280" y="328" width="200" height="56" rx="7"/><rect x="536" y="328" width="200" height="56" rx="7"/>
+<rect x="280" y="424" width="200" height="56" rx="7" stroke="#1A7F8E" stroke-dasharray="5 3"/>
+<rect x="280" y="520" width="200" height="56" rx="7"/>
+</g>
+<rect x="280" y="216" width="200" height="72" rx="7" fill="#E3F1F3" stroke="#1A7F8E" stroke-width="2.2"/>
+<g text-anchor="middle" font-size="13.5" font-weight="700" fill="#1F3A5F">
+<text x="380" y="47">User portal</text><text x="380" y="143">Access control</text><text x="124" y="143">Audit log</text><text x="636" y="143">Report generator</text>
+<text x="124" y="240">Semantic layer</text><text x="380" y="240" fill="#1A7F8E">LLM orchestrator</text>
+<text x="380" y="351">Query service</text><text x="636" y="351">Analytics and charts</text><text x="380" y="447">Reporting data store</text><text x="380" y="543">Client data sources</text>
+</g>
+<g text-anchor="middle" font-size="11.5" fill="#3A4350">
+<text x="380" y="65">Chat requests, SSO login</text><text x="380" y="161">Role and row-level rules</text><text x="124" y="161">Who asked, what query ran</text><text x="636" y="161">Summary, stats and charts</text>
+<text x="124" y="258">Metrics, account mapping</text><text x="124" y="274">Fiscal calendar, currencies</text>
+<text x="380" y="258">Reads request, asks to clarify</text><text x="380" y="274">Writes query and narrative</text>
+<text x="380" y="369">Read-only SQL, time limits</text><text x="636" y="369">Totals, trends, graphs</text>
+<text x="380" y="465">New in v1.1 · copy of ERP data</text><text x="380" y="561">ERP, inventory, finance data</text>
+</g>
+</svg>

@@ -67,7 +67,9 @@ class OpenAICompatiblePlanner:
         """Best effort: list a few model names the key can use."""
         try:
             response = self.client.get("/models", headers=self.headers)
-            names = sorted(m["id"].removeprefix("models/") for m in response.json().get("data", []))
+            # Newest versions first ("gemini-3.8-flash" before "gemini-2.5-flash").
+            names = sorted((m["id"].removeprefix("models/") for m in response.json().get("data", [])),
+                           key=lambda n: [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", n)], reverse=True)
         except Exception:
             return f" See {self.provider.console} for the list."
         return f" Available: {', '.join(names[:15])}" if names else ""

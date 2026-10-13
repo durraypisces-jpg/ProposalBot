@@ -87,9 +87,9 @@ def test_missing_key_and_model_are_explained(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(ProviderError, match="GEMINI_API_KEY.*aistudio.google.com"):
         OpenAICompatiblePlanner("gemini", "m")
-    models = {"data": [{"id": "models/model-b"}, {"id": "models/model-a"}]}
+    models = {"data": [{"id": "models/model-2.5"}, {"id": "models/model-10"}, {"id": "models/model-3.8"}]}
     client, _ = fake_api(lambda req, body: httpx.Response(200, json=models))
-    with pytest.raises(ProviderError, match="RA_LLM_MODEL.*Available: model-a, model-b"):
+    with pytest.raises(ProviderError, match="RA_LLM_MODEL.*Available: model-10, model-3.8, model-2.5"):
         planner(client, model="")
 
 

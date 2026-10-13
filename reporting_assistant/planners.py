@@ -1,11 +1,12 @@
-"""Chooses the LLM behind the assistant (RA_PROVIDER): claude, grok or demo."""
+"""Chooses the LLM behind the assistant (RA_PROVIDER): claude, gemini, groq,
+openrouter, grok or demo."""
 
 from __future__ import annotations
 
 from .config import Settings
 from .llm import Planner
 
-PROVIDERS = ("claude", "grok", "demo")
+PROVIDERS = ("claude", "gemini", "groq", "openrouter", "grok", "demo")
 
 
 def make_planner(settings: Settings) -> Planner:
@@ -13,9 +14,9 @@ def make_planner(settings: Settings) -> Planner:
     if provider == "claude":
         from .llm import ClaudePlanner
         return ClaudePlanner(settings.model, settings.plan_effort, settings.narrative_effort)
-    if provider == "grok":
-        from .grok import GrokPlanner
-        return GrokPlanner(settings.grok_model)
+    if provider in ("gemini", "groq", "openrouter", "grok"):
+        from .openai_compatible import OpenAICompatiblePlanner
+        return OpenAICompatiblePlanner(provider, settings.llm_model)
     if provider == "demo":
         from .demo import DemoPlanner
         return DemoPlanner()

@@ -115,8 +115,9 @@ class DemoPlanner:
             return DEMO_PLANS[asked]
         return _plan(action="clarify", sql="", title="", chart_type="table", x="", y=[], measures=[], filters_summary="",
                      message="Demo mode answers the standard reports in the sidebar. To ask anything in plain "
-                             "English, restart without RA_DEMO_MODE and set ANTHROPIC_API_KEY (Claude), or "
-                             "RA_PROVIDER=grok with XAI_API_KEY and RA_GROK_MODEL (Grok).")
+                             "English, restart without RA_DEMO_MODE and set up a provider: ANTHROPIC_API_KEY for "
+                             "Claude, or a free key such as RA_PROVIDER=gemini with GEMINI_API_KEY and RA_LLM_MODEL "
+                             "(see the README).")
 
     def narrate(self, payload: dict) -> str:
         stats = payload["statistics"]["measures"]

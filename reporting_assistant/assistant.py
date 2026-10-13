@@ -113,6 +113,9 @@ class Assistant:
         except LLMRefused as exc:
             self.store.audit(**audit, outcome="refused", duration_ms=elapsed(), detail=str(exc))
             return Reply("decline", "Sorry, I can't help with that request.")
+        except Exception as exc:  # the AI service failed (bad key, model name, network, outage)
+            self.store.audit(**audit, outcome="error", duration_ms=elapsed(), detail=f"{type(exc).__name__}: {exc}")
+            return Reply("error", f"The AI service couldn't answer: {exc}")
 
         report = self._build_report(user, request, plan, result)
         self.store.save_report(report)

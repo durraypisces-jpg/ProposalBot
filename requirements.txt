@@ -4,10 +4,10 @@ uvicorn>=0.30
 pandas>=2.2
 PyYAML>=6.0
 pydantic>=2.7
+httpx>=0.27          # Grok (xAI) connector
 matplotlib>=3.8
 reportlab>=4.0
 python-docx>=1.1
 openpyxl>=3.1
 # tests
 pytest>=8.0
-httpx>=0.27

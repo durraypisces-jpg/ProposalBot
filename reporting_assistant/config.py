@@ -15,7 +15,9 @@ class Settings:
     data_dir: Path = field(default_factory=lambda: Path(os.getenv("RA_DATA_DIR", "var")).resolve())
     semantic_layer_path: Path = PACKAGE_DIR / "semantic_layer.yaml"
 
-    # LLM orchestrator (section 7 of the proposal).
+    # LLM orchestrator (section 7 of the proposal): claude, grok or demo.
+    provider: str = os.getenv("RA_PROVIDER", "claude").lower()
+    grok_model: str = os.getenv("RA_GROK_MODEL", "")
     model: str = os.getenv("RA_MODEL", "claude-opus-5-5")
     plan_effort: str = os.getenv("RA_PLAN_EFFORT", "high")
     narrative_effort: str = os.getenv("RA_NARRATIVE_EFFORT", "low")

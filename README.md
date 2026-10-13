@@ -20,10 +20,21 @@ pip install -r requirements.txt
 # Option A: offline demo (standard reports only, no API key needed)
 RA_DEMO_MODE=1 uvicorn reporting_assistant.app:app --reload
 
-# Option B: full assistant (any plain-English request)
+# Option B: full assistant with Claude (any plain-English request)
 export ANTHROPIC_API_KEY=...        # or sign in with `ant auth login`
 uvicorn reporting_assistant.app:app --reload
+
+# Option C: full assistant with Grok (xAI)
+export RA_PROVIDER=grok
+export XAI_API_KEY=...              # from console.x.ai
+export RA_GROK_MODEL=...            # a model name from the Models page of console.x.ai
+uvicorn reporting_assistant.app:app --reload
 ```
+
+Grok and Claude get the same instructions, schema and guardrails. Only the model that writes the query and
+the summary changes, so you can run the gate tests (`python -m eval.run_eval`) on each and compare accuracy.
+If you use xAI's free credits, check their terms first: free-credit programmes may let the provider use your
+data, which is fine for the sample data but not for a client's real figures.
 
 Open http://localhost:8000 and pick a demo user. Each user has a different role, so you can see access
 control at work. For example, Amina only sees the North warehouse, and Sara only sees the Pakistan entity's
@@ -45,7 +56,7 @@ python -m reporting_assistant.cli ask --user omar "Stock value by site"
 | --- | --- |
 | User portal | `reporting_assistant/static/` (chat, reports, exports, saved reports) and `app.py` (API) |
 | Access control | `auth.py` (roles, sites, entities) and `query_service.py` (row-level security in the database) |
-| LLM orchestrator | `llm.py` (Claude planner and narrative) and `assistant.py` (request flow) |
+| LLM orchestrator | `llm.py` (Claude), `grok.py` (Grok), `planners.py` (choice) and `assistant.py` (request flow) |
 | Semantic layer | `semantic_layer.yaml` (views, columns, business rules, roles, templates) and `semantic.py` |
 | Query service | `query_service.py` |
 | Analytics and charts | `analytics.py` (statistics) and `exporters.py` / `app.js` (charts) |
@@ -112,7 +123,9 @@ SQL repair, follow-ups, provisional periods), the API, the exports and the gate 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RA_DATA_DIR` | `var` | Where the ERP, reporting store and app databases live |
+| `RA_PROVIDER` | `claude` | `claude`, `grok` or `demo` |
 | `RA_MODEL` | `claude-opus-5-5` | Claude model for planning and narrative |
+| `RA_GROK_MODEL` / `XAI_API_KEY` | none | Grok model name and key, when `RA_PROVIDER=grok` |
 | `RA_PLAN_EFFORT` / `RA_NARRATIVE_EFFORT` | `high` / `low` | Effort for each call |
 | `RA_DEMO_MODE` | off | Answer the standard reports without calling Claude |
 | `RA_QUERY_TIMEOUT` | `30` | Seconds before a query is stopped |

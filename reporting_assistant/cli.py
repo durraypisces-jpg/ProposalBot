@@ -15,7 +15,7 @@ import uuid
 from .assistant import Assistant
 from .auth import demo_user
 from .config import get_settings
-from .llm import ClaudePlanner
+from .planners import make_planner
 from .query_service import QueryService
 from .refresh import refresh_reporting_store
 from .sample_data import build_sample_erp
@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> None:
         assistant = Assistant(
             layer=layer,
             queries=QueryService(settings.reporting_db, layer, settings.query_timeout_seconds, settings.max_rows),
-            planner=ClaudePlanner(settings.model, settings.plan_effort, settings.narrative_effort),
+            planner=make_planner(settings),
             store=AppStore(settings.app_db),
             reporting_db=settings.reporting_db,
         )

@@ -5,10 +5,10 @@ expected SQL as the same user, and checks that the numbers match. Prints
 accuracy per gate against the targets (Gate 2: 95%, Gate 3: 98%) and exits
 non-zero if a gate misses its target, so it can block a release.
 
-    python -m eval.run_eval              # uses Claude (needs API credentials)
+    python -m eval.run_eval              # uses RA_PROVIDER (claude by default; grok works too)
     python -m eval.run_eval --only fin-  # a subset by id prefix
 
-Each run calls the Claude API once or twice per question.
+Each run calls the LLM API once or twice per question.
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ import yaml
 from reporting_assistant.assistant import Assistant
 from reporting_assistant.auth import demo_user
 from reporting_assistant.config import get_settings
-from reporting_assistant.llm import ClaudePlanner, Planner
+from reporting_assistant.llm import Planner
+from reporting_assistant.planners import make_planner
 from reporting_assistant.query_service import QueryService
 from reporting_assistant.semantic import load_semantic_layer
 from reporting_assistant.store import AppStore
@@ -54,7 +55,7 @@ def run(planner: Planner | None = None, only: str = "") -> dict[int, tuple[int, 
     settings = get_settings()
     layer = load_semantic_layer(settings.semantic_layer_path)
     queries = QueryService(settings.reporting_db, layer, settings.query_timeout_seconds, settings.max_rows)
-    assistant = Assistant(layer, queries, planner or ClaudePlanner(settings.model, settings.plan_effort, settings.narrative_effort),
+    assistant = Assistant(layer, queries, planner or make_planner(settings),
                           AppStore(settings.data_dir / "eval.db"), settings.reporting_db)
     questions = [q for q in yaml.safe_load(QUESTIONS.read_text()) if q["id"].startswith(only)]
 

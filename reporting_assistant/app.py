@@ -19,9 +19,9 @@ from pydantic import BaseModel
 from .assistant import Assistant
 from .auth import UnknownUser, User, demo_user
 from .config import PACKAGE_DIR, Settings, get_settings
-from .demo import DemoPlanner
 from .exporters import EXPORTERS, render_chart_png
-from .llm import ClaudePlanner, Planner
+from .llm import Planner
+from .planners import make_planner
 from .query_service import QueryService
 from .refresh import last_refresh, refresh_reporting_store
 from .sample_data import build_sample_erp
@@ -55,7 +55,7 @@ def create_app(settings: Settings | None = None, planner: Planner | None = None)
 
     store = AppStore(settings.app_db)
     if planner is None:
-        planner = DemoPlanner() if settings.demo_mode else ClaudePlanner(settings.model, settings.plan_effort, settings.narrative_effort)
+        planner = make_planner(settings)
     assistant = Assistant(
         layer=layer,
         queries=QueryService(settings.reporting_db, layer, settings.query_timeout_seconds, settings.max_rows),

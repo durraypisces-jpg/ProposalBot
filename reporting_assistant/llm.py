@@ -98,6 +98,10 @@ at most 6 slices, table when a chart would not help. Fill measures with the nume
 If the user is refining an earlier report ("now by month"), start from the previous SQL in the conversation."""
 
 
+NO_CREDENTIALS = ("No Claude credentials found. Set ANTHROPIC_API_KEY, or choose another provider with "
+                  "RA_PROVIDER (gemini, groq, openrouter or grok) and its key - see the README.")
+
+
 class LLMRefused(Exception):
     pass
 
@@ -120,7 +124,18 @@ class ClaudePlanner:
         output_config: dict = {"effort": effort}
         if schema:
             output_config["format"] = {"type": "json_schema", "schema": schema}
-        response = self.client.beta.messages.create(
+        try:
+            response = self._send(system=system, content=content, output_config=output_config)
+        except TypeError as exc:
+            if "authentication" not in str(exc):
+                raise
+            raise RuntimeError(NO_CREDENTIALS) from exc
+        if response.stop_reason == "refusal":
+            raise LLMRefused("The language model declined this request.")
+        return next((b.text for b in response.content if b.type == "text"), "")
+
+    def _send(self, *, system: list[dict], content: str, output_config: dict):
+        return self.client.beta.messages.create(
             model=self.model,
             max_tokens=16000,
             betas=[FALLBACK_BETA],
@@ -129,9 +144,6 @@ class ClaudePlanner:
             system=system,
             messages=[{"role": "user", "content": content}],
         )
-        if response.stop_reason == "refusal":
-            raise LLMRefused("The language model declined this request.")
-        return next((b.text for b in response.content if b.type == "text"), "")
 
     def plan(self, context: str, request: str) -> Plan:
         # The schema and rules for a role are stable, so they are cached;

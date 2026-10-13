@@ -37,8 +37,20 @@ python -m uvicorn reporting_assistant.app:app --reload
 | `groq` | `GROQ_API_KEY` | console.groq.com (free tier) |
 | `openrouter` | `OPENROUTER_API_KEY` | openrouter.ai (some free models) |
 | `grok` | `XAI_API_KEY` | console.x.ai |
+| `ollama` | none | Free model running on your own machine or codespace, see below |
 
 If you leave `RA_LLM_MODEL` empty, the error message lists the model names your key can use.
+
+**Completely free, no key: Ollama.** Runs an open-source model on the same machine, so nothing leaves it.
+Slower on a CPU and less accurate than the hosted models, but it has no quotas or region restrictions:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh     # install once
+ollama serve > /tmp/ollama.log 2>&1 &             # start it in the background
+ollama pull qwen2.5:3b                            # download a small model (about 2 GB)
+export RA_PROVIDER=ollama RA_LLM_MODEL=qwen2.5:3b
+python -m eval.run_eval
+```
 
 Every provider gets the same instructions, schema and guardrails. Only the model that writes the query and
 the summary changes, so you can run the gate tests (`python -m eval.run_eval`) on each and compare accuracy.
@@ -132,7 +144,7 @@ SQL repair, follow-ups, provisional periods), the API, the exports and the gate 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RA_DATA_DIR` | `var` | Where the ERP, reporting store and app databases live |
-| `RA_PROVIDER` | `claude` | `claude`, `gemini`, `groq`, `openrouter`, `grok` or `demo` |
+| `RA_PROVIDER` | `claude` | `claude`, `gemini`, `groq`, `openrouter`, `grok`, `ollama` or `demo` |
 | `RA_MODEL` | `claude-opus-5-5` | Claude model for planning and narrative |
 | `RA_LLM_MODEL` | none | Model name for the non-Claude providers (`RA_GROK_MODEL` also works) |
 | `RA_PLAN_EFFORT` / `RA_NARRATIVE_EFFORT` | `high` / `low` | Effort for each call |

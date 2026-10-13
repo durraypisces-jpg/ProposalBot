@@ -6,6 +6,7 @@ Claude planner, with the same instructions and plan schema.
     RA_PROVIDER=groq     GROQ_API_KEY=...        (free key: console.groq.com)
     RA_PROVIDER=openrouter OPENROUTER_API_KEY=... (free models: openrouter.ai)
     RA_PROVIDER=grok     XAI_API_KEY=...         (console.x.ai)
+    RA_PROVIDER=ollama   no key: a free model running on this machine (ollama.com)
 
 plus RA_LLM_MODEL, a model name from that provider's model list.
 """
@@ -27,8 +28,9 @@ from .llm import NARRATIVE_INSTRUCTIONS, PLAN_SCHEMA, PLANNER_INSTRUCTIONS, LLMR
 class Provider:
     name: str
     base_url: str
-    key_env: str
+    key_env: str | None  # None: no key needed
     console: str
+    timeout: float = 120.0
 
 
 PROVIDERS = {
@@ -36,6 +38,9 @@ PROVIDERS = {
     "groq": Provider("Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "console.groq.com"),
     "openrouter": Provider("OpenRouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openrouter.ai"),
     "grok": Provider("xAI Grok", "https://api.x.ai/v1", "XAI_API_KEY", "console.x.ai"),
+    # Local models answer slowly on a CPU, so allow up to 10 minutes per call.
+    "ollama": Provider("Ollama", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"), None,
+                       "ollama.com (run `ollama list` to see downloaded models)", timeout=600.0),
 }
 
 
@@ -54,15 +59,16 @@ def _strip_fences(text: str) -> str:
 
 class OpenAICompatiblePlanner:
     def __init__(self, provider: str, model: str, api_key: str | None = None,
-                 client: httpx.Client | None = None, timeout: float = 120.0):
+                 client: httpx.Client | None = None):
         if provider not in PROVIDERS:
             raise ProviderError(f"Unknown provider {provider!r}.")
         self.provider = PROVIDERS[provider]
-        api_key = api_key or os.getenv(self.provider.key_env, "")
-        if not api_key:
-            raise ProviderError(f"Set {self.provider.key_env} to an API key from {self.provider.console}.")
-        self.client = client or httpx.Client(base_url=self.provider.base_url, timeout=timeout)
-        self.headers = {"Authorization": f"Bearer {api_key}"}
+        if self.provider.key_env:
+            api_key = api_key or os.getenv(self.provider.key_env, "")
+            if not api_key:
+                raise ProviderError(f"Set {self.provider.key_env} to an API key from {self.provider.console}.")
+        self.client = client or httpx.Client(base_url=self.provider.base_url, timeout=self.provider.timeout)
+        self.headers = {"Authorization": f"Bearer {api_key or 'none'}"}
         if not model:
             raise ProviderError(f"Set RA_LLM_MODEL to a {self.provider.name} model name.{self._model_hint()}")
         self.model = model

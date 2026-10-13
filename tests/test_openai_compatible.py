@@ -126,9 +126,10 @@ def test_service_errors_become_a_message(settings, layer):
 
 def test_provider_selection(monkeypatch, tmp_path):
     for provider in PROVIDERS.values():
-        monkeypatch.setenv(provider.key_env, "k")
+        if provider.key_env:
+            monkeypatch.setenv(provider.key_env, "k")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
-    for name in ("gemini", "groq", "openrouter", "grok"):
+    for name in ("gemini", "groq", "openrouter", "grok", "ollama"):
         chosen = make_planner(Settings(data_dir=tmp_path, provider=name, llm_model="m"))
         assert isinstance(chosen, OpenAICompatiblePlanner) and chosen.provider is PROVIDERS[name]
     assert isinstance(make_planner(Settings(data_dir=tmp_path, provider="claude")), ClaudePlanner)
@@ -151,3 +152,11 @@ def test_gives_up_after_retries():
     with pytest.raises(ProviderError, match="503: busy"):
         planner(client).narrate({})
     assert len(seen) == 5
+
+
+def test_ollama_needs_no_key(monkeypatch):
+    plan = make_plan()
+    client, seen = fake_api(lambda req, body: message(plan.model_dump_json()))
+    local = OpenAICompatiblePlanner("ollama", "qwen-test", client=client)
+    assert local.plan("c", "r") == plan
+    assert PROVIDERS["ollama"].base_url.startswith("http://localhost:11434")

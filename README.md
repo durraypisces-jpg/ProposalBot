@@ -14,6 +14,18 @@ so it can be demonstrated before the client's systems are connected.
 
 ## Quick start
 
+**Easiest way to connect an AI:** run the setup wizard once. It asks which AI to use, takes your key
+(hidden as you type), finds a model that is answering right now, and saves everything to `.env` (never
+committed), so every new terminal picks it up:
+
+```bash
+pip install -r requirements.txt
+python -m reporting_assistant.cli setup     # choose Gemini (free key), Ollama (no key) or Claude
+python -m reporting_assistant.cli check     # plain-English test of the connection
+```
+
+Or set it up by hand:
+
 ```bash
 pip install -r requirements.txt
 

@@ -7,6 +7,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).resolve().parent
+ENV_FILE = Path(".env")
+
+
+def load_env_file(path: Path = ENV_FILE) -> None:
+    """Read KEY=VALUE lines from .env (written by `cli setup`) into the environment.
+    Settings already exported in the shell take precedence."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        key, sep, value = line.strip().partition("=")
+        if sep and key and not key.startswith("#"):
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file()
 
 
 @dataclass(frozen=True)

@@ -52,6 +52,46 @@ RETRY_STATUSES = {429, 500, 502, 503, 504}  # rate limited, or the service is bu
 RETRY_DELAYS = (2.0, 5.0, 10.0, 20.0)       # seconds; free tiers are often briefly overloaded
 
 
+def _version_key(name: str) -> list:
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", name)]
+
+
+def list_models(provider: str, api_key: str = "", client: httpx.Client | None = None) -> list[str]:
+    """Model names this key can use, newest versions first."""
+    spec = PROVIDERS[provider]
+    client = client or httpx.Client(base_url=spec.base_url, timeout=30)
+    response = client.get("/models", headers={"Authorization": f"Bearer {api_key or 'none'}"})
+    if response.status_code >= 400:
+        raise ProviderError(f"{spec.name} API error {response.status_code}: {response.text[:300]}")
+    names = (m["id"].removeprefix("models/") for m in response.json().get("data", []))
+    return sorted(names, key=_version_key, reverse=True)
+
+
+PLAIN_ADVICE = {
+    400: "The request was rejected. The model may not support chat; try another model.",
+    401: "The API key is wrong. Copy it again from {console}.",
+    403: "Access denied. The key may lack permission, or the service is restricted for your account or region.",
+    404: "That model name doesn't exist or is retired for your account. Pick another model.",
+    429: "Free quota or rate limit reached. Wait a minute, or try another model.",
+    503: "The model is busy (high demand). Try again later, or pick another model.",
+}
+
+
+def probe(provider: str, model: str, api_key: str = "", client: httpx.Client | None = None) -> tuple[bool, str]:
+    """One tiny request, no retries. Returns (worked, plain-English explanation)."""
+    spec = PROVIDERS[provider]
+    client = client or httpx.Client(base_url=spec.base_url, timeout=spec.timeout)
+    try:
+        response = client.post("/chat/completions", headers={"Authorization": f"Bearer {api_key or 'none'}"},
+                               json={"model": model, "messages": [{"role": "user", "content": "Reply with: OK"}]})
+    except httpx.HTTPError as exc:
+        return False, f"Couldn't reach {spec.name}: {exc}"
+    if response.status_code < 400:
+        return True, f"{spec.name} model {model} answered."
+    advice = PLAIN_ADVICE.get(response.status_code, "Unexpected error.").format(console=spec.console)
+    return False, f"{response.status_code}: {advice}"
+
+
 def _strip_fences(text: str) -> str:
     match = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     return (match.group(1) if match else text).strip()
@@ -63,6 +103,7 @@ class OpenAICompatiblePlanner:
         if provider not in PROVIDERS:
             raise ProviderError(f"Unknown provider {provider!r}.")
         self.provider = PROVIDERS[provider]
+        self.provider_id = provider
         if self.provider.key_env:
             api_key = api_key or os.getenv(self.provider.key_env, "")
             if not api_key:
@@ -77,10 +118,8 @@ class OpenAICompatiblePlanner:
     def _model_hint(self) -> str:
         """Best effort: list a few model names the key can use."""
         try:
-            response = self.client.get("/models", headers=self.headers)
             # Newest versions first ("gemini-3.8-flash" before "gemini-2.5-flash").
-            names = sorted((m["id"].removeprefix("models/") for m in response.json().get("data", [])),
-                           key=lambda n: [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", n)], reverse=True)
+            names = list_models(self.provider_id, self.headers["Authorization"].removeprefix("Bearer "), self.client)
         except Exception:
             return f" See {self.provider.console} for the list."
         return f" Available: {', '.join(names[:15])}" if names else ""

@@ -73,7 +73,8 @@ def run_setup(ask: Callable[[str], str] = input, ask_secret: Callable[[str], str
     choice = ask("Type 1, 2 or 3 and press Enter: ").strip()
 
     if choice == "3":
-        key = ask_secret("Paste your Anthropic API key (it stays hidden) and press Enter: ").strip()
+        key = os.getenv("ANTHROPIC_API_KEY", "").strip() or \
+            ask_secret("Paste your Anthropic API key (it stays hidden) and press Enter: ").strip()
         if not key:
             say("No key entered. Nothing saved.")
             return False
@@ -97,7 +98,11 @@ def run_setup(ask: Callable[[str], str] = input, ask_secret: Callable[[str], str
         say("Testing your downloaded models (the first answer can take a minute)...")
     elif choice == "1":
         provider = "gemini"
-        key = ask_secret("Paste your Gemini API key (it stays hidden) and press Enter: ").strip()
+        key = os.getenv("GEMINI_API_KEY", "").strip()
+        if key:
+            say("Using the Gemini key already saved (from .env or the terminal).")
+        else:
+            key = ask_secret("Paste your Gemini API key (it stays hidden) and press Enter: ").strip()
         if not key:
             say("No key entered. Nothing saved.")
             return False

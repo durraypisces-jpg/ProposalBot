@@ -40,7 +40,8 @@ def test_candidates_put_lite_first_and_drop_non_chat_models():
                                             "gemini-3.8-flash", "gemini-3.8-pro"]
 
 
-def test_setup_finds_a_working_model_and_saves_env(tmp_path):
+def test_setup_finds_a_working_model_and_saves_env(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     client, calls = fake_gemini(working={"gemini-3.8-flash"})
     said = []
     env = tmp_path / ".env"
@@ -51,7 +52,8 @@ def test_setup_finds_a_working_model_and_saves_env(tmp_path):
     assert "my-key" not in "\n".join(said)  # the key is never printed
 
 
-def test_setup_reports_when_nothing_answers(tmp_path):
+def test_setup_reports_when_nothing_answers(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     client, _ = fake_gemini(working=set())
     said = []
     env = tmp_path / ".env"
@@ -97,3 +99,15 @@ def test_check_gives_plain_advice(tmp_path, monkeypatch):
     said = []
     assert not check(Settings(data_dir=tmp_path, provider="gemini", llm_model="old-model"), say=said.append)
     assert "retired" in said[1] and "cli setup" in said[2]
+
+
+def test_setup_reuses_a_key_already_in_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "saved-key")
+    client, _ = fake_gemini(working={"gemini-3.8-flash-lite"})
+
+    def never_asked(prompt):
+        raise AssertionError("should not ask for the key")
+
+    env = tmp_path / ".env"
+    assert run_setup(ask=scripted("1"), ask_secret=never_asked, say=lambda s: None, client=client, env_path=env)
+    assert "GEMINI_API_KEY=saved-key" in env.read_text()

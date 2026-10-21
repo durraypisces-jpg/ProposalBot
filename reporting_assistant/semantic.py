@@ -29,6 +29,7 @@ class Role:
     row_filters: dict[str, str] = field(default_factory=dict)
     consolidated: bool = False
     can_administer: bool = False
+    can_capture_documents: bool = False
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,11 @@ class SemanticLayer:
     roles: dict[str, Role]
     demo_users: tuple[dict, ...]
     templates: tuple[dict, ...]
+    clients: dict[str, dict] = field(default_factory=dict)
+
+    @property
+    def default_client(self) -> str:
+        return next(iter(self.clients), "demo-client")
 
     def fiscal_period_of(self, day: date) -> tuple[int, int]:
         """Return (fiscal_year, fiscal_period) for a calendar date (FR-15)."""
@@ -58,13 +64,13 @@ class SemanticLayer:
             visible.append(view)
         return visible
 
-    def describe_for(self, role: Role) -> str:
+    def describe_for(self, role: Role, dialect_label: str = "SQLite") -> str:
         """The schema and rules the LLM sees: only views this role may query."""
         lines = [f"Reporting currency: {self.reporting_currency}", "", "Fiscal calendar:"]
         lines += [f"- {note}" for note in self.fiscal_notes]
         lines += ["", "Business rules:"]
         lines += [f"- {rule}" for rule in self.business_rules]
-        lines += ["", "Views you may query (SQLite dialect):"]
+        lines += ["", f"Views you may query ({dialect_label} dialect):"]
         for view in self.views_for(role):
             lines.append(f"\n{view.name}  -- {view.description}")
             for column, meaning in view.columns.items():
@@ -97,6 +103,7 @@ def _parse(raw: dict) -> SemanticLayer:
             row_filters=dict(spec.get("row_filters", {})),
             consolidated=bool(spec.get("consolidated", False)),
             can_administer=bool(spec.get("can_administer", False)),
+            can_capture_documents=bool(spec.get("can_capture_documents", False)),
         )
         for name, spec in raw["roles"].items()
     }
@@ -109,6 +116,7 @@ def _parse(raw: dict) -> SemanticLayer:
         roles=roles,
         demo_users=tuple(raw.get("demo_users", [])),
         templates=tuple(raw.get("templates", [])),
+        clients=dict(raw.get("clients") or {"demo-client": {"name": "Demo client", "sample_seed": 42}}),
     )
 
 

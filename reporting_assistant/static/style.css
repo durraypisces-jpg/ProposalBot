@@ -99,3 +99,16 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--rule); max-height: 40vh; }
 }
+
+/* v5 proposal additions */
+.bubble.confirm { border-left: 3px solid var(--accent, #1A7F8E); }
+.bubble.notice, .bubble.blocked { background: #FFF4E5; color: #7A4B00; }
+.badge.ok { background: #E3F4EA; color: #1E6B3A; }
+dialog.wide { width: min(1100px, 96vw); }
+.upload { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 16px; }
+.doc-review { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+.doc-view { width: 100%; height: 70vh; border: 1px solid #ddd; object-fit: contain; }
+.doc-fields { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.issues li.error { color: #A12A2A; }
+.issues li.warning { color: #7A4B00; }
+@media (max-width: 760px) { .doc-review { grid-template-columns: 1fr; } }

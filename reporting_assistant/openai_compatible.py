@@ -1,6 +1,11 @@
 """Planner for providers with an OpenAI-compatible chat completions API:
-Google Gemini, Groq, OpenRouter and xAI Grok. It does the same two jobs as the
-Claude planner, with the same instructions and plan schema.
+vLLM on our own GPU server (the proposal's production setup), Google Gemini,
+Groq, OpenRouter, xAI Grok and Ollama. It does the same two jobs as the Claude
+planner, with the same instructions and plan schema.
+
+    RA_PROVIDER=vllm     VLLM_BASE_URL=http://gpu-server:8001/v1 (VLLM_API_KEY if the server sets --api-key)
+                         RA_LLM_MODEL=Snowflake/Arctic-Text2SQL-R1-7B  (writes the SQL)
+                         RA_SUMMARY_MODEL=Qwen/Qwen3.8-27B-FP8         (optional: writes summaries)
 
     RA_PROVIDER=gemini   GEMINI_API_KEY=...      (free key: aistudio.google.com)
     RA_PROVIDER=groq     GROQ_API_KEY=...        (free key: console.groq.com)
@@ -21,7 +26,8 @@ from dataclasses import dataclass
 
 import httpx
 
-from .llm import NARRATIVE_INSTRUCTIONS, PLAN_SCHEMA, PLANNER_INSTRUCTIONS, LLMRefused, Plan
+from .llm import NARRATIVE_INSTRUCTIONS, PLAN_SCHEMA, LLMRefused, planner_instructions, Plan, Usage, UsageTracker
+from .tokens import count_tokens
 
 
 @dataclass(frozen=True)
@@ -31,9 +37,14 @@ class Provider:
     key_env: str | None  # None: no key needed
     console: str
     timeout: float = 120.0
+    optional_key_env: str | None = None  # read if set, but not required
 
 
 PROVIDERS = {
+    # Our own GPU server. Everything stays on local servers (client requirement).
+    # Arctic "thinks" before answering, so allow up to 5 minutes per call.
+    "vllm": Provider("vLLM (local GPU server)", os.getenv("VLLM_BASE_URL", "http://localhost:8001/v1"), None,
+                     "the vLLM server's /v1/models list", timeout=300.0, optional_key_env="VLLM_API_KEY"),
     "gemini": Provider("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", "aistudio.google.com"),
     "groq": Provider("Groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", "console.groq.com"),
     "openrouter": Provider("OpenRouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openrouter.ai"),
@@ -93,13 +104,36 @@ def probe(provider: str, model: str, api_key: str = "", client: httpx.Client | N
 
 
 def _strip_fences(text: str) -> str:
+    # Reasoning models (Arctic, Qwen) may put their thinking before the answer.
+    if "</think>" in text:
+        text = text.rsplit("</think>", 1)[1]
     match = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     return (match.group(1) if match else text).strip()
 
 
-class OpenAICompatiblePlanner:
+def _usage_from(body: dict, model: str, message: dict) -> Usage | None:
+    """Billing counts come from the server's own usage figures. vLLM reports
+    reasoning tokens inside completion_tokens; when it doesn't break them out,
+    they are counted from the returned reasoning text."""
+    usage = body.get("usage") or {}
+    if not usage:
+        return None
+    details = usage.get("completion_tokens_details") or {}
+    reasoning = int(details.get("reasoning_tokens") or 0)
+    if not reasoning:
+        thinking = message.get("reasoning_content") or message.get("reasoning") or ""
+        if not thinking and "</think>" in (message.get("content") or ""):
+            thinking = message["content"].rsplit("</think>", 1)[0]
+        reasoning = count_tokens(thinking, model) if thinking else 0
+    output = int(usage.get("completion_tokens") or 0)
+    return Usage(body.get("model") or model, int(usage.get("prompt_tokens") or 0), output, min(reasoning, output))
+
+
+class OpenAICompatiblePlanner(UsageTracker):
     def __init__(self, provider: str, model: str, api_key: str | None = None,
-                 client: httpx.Client | None = None):
+                 client: httpx.Client | None = None, summary_model: str = "", sql_dialect: str = "sqlite"):
+        super().__init__()
+        self.instructions = planner_instructions(sql_dialect)
         if provider not in PROVIDERS:
             raise ProviderError(f"Unknown provider {provider!r}.")
         self.provider = PROVIDERS[provider]
@@ -108,11 +142,14 @@ class OpenAICompatiblePlanner:
             api_key = api_key or os.getenv(self.provider.key_env, "")
             if not api_key:
                 raise ProviderError(f"Set {self.provider.key_env} to an API key from {self.provider.console}.")
+        elif self.provider.optional_key_env:
+            api_key = api_key or os.getenv(self.provider.optional_key_env, "")
         self.client = client or httpx.Client(base_url=self.provider.base_url, timeout=self.provider.timeout)
         self.headers = {"Authorization": f"Bearer {api_key or 'none'}"}
         if not model:
             raise ProviderError(f"Set RA_LLM_MODEL to a {self.provider.name} model name.{self._model_hint()}")
         self.model = model
+        self.summary_model = summary_model or model
         self.json_schema_supported = True
 
     def _model_hint(self) -> str:
@@ -124,8 +161,9 @@ class OpenAICompatiblePlanner:
             return f" See {self.provider.console} for the list."
         return f" Available: {', '.join(names[:15])}" if names else ""
 
-    def _chat(self, system: str, user: str, response_format: dict | None = None) -> httpx.Response:
-        body: dict = {"model": self.model,
+    def _chat(self, system: str, user: str | list, response_format: dict | None = None,
+              model: str = "") -> httpx.Response:
+        body: dict = {"model": model or self.model,
                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         if response_format:
             body["response_format"] = response_format
@@ -140,7 +178,11 @@ class OpenAICompatiblePlanner:
     def _text(self, response: httpx.Response) -> str:
         if response.status_code >= 400:
             raise self._error(response)
-        message = response.json()["choices"][0]["message"]
+        body = response.json()
+        message = body["choices"][0]["message"]
+        usage = _usage_from(body, self.model, message)
+        if usage:
+            self._record_usage(usage)
         if message.get("refusal"):
             raise LLMRefused(message["refusal"])
         return message.get("content") or ""
@@ -158,7 +200,7 @@ class OpenAICompatiblePlanner:
         return ProviderError(f"{self.provider.name} API error {response.status_code}: {detail}")
 
     def plan(self, context: str, request: str) -> Plan:
-        system = PLANNER_INSTRUCTIONS + "\n\n" + context
+        system = self.instructions + "\n\n" + context
         if self.json_schema_supported:
             response = self._chat(system, request, {
                 "type": "json_schema", "json_schema": {"name": "report_plan", "schema": PLAN_SCHEMA, "strict": True}})
@@ -174,4 +216,5 @@ class OpenAICompatiblePlanner:
         return Plan.model_validate_json(_strip_fences(self._text(response)))
 
     def narrate(self, payload: dict) -> str:
-        return self._text(self._chat(NARRATIVE_INSTRUCTIONS, json.dumps(payload, indent=1, default=str))).strip()
+        content = json.dumps(payload, indent=1, default=str)
+        return _strip_fences(self._text(self._chat(NARRATIVE_INSTRUCTIONS, content, model=self.summary_model)))

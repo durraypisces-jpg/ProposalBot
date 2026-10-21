@@ -24,6 +24,7 @@ import pandas as pd
 
 from .auth import User
 from .semantic import SemanticLayer
+from .sql_validator import SQLValidationError, validate_select
 
 _ALLOWED_ACTIONS = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_FUNCTION, getattr(sqlite3, "SQLITE_RECURSIVE", 33)}
 _LEADING_COMMENTS = re.compile(r"^\s*(--[^\n]*\n|/\*.*?\*/)\s*", re.S)
@@ -64,9 +65,11 @@ def _literal(value: str) -> str:
 
 
 class QueryService:
-    def __init__(self, reporting_db: Path, layer: SemanticLayer, timeout_seconds: float = 30.0, max_rows: int = 5000):
+    def __init__(self, reporting_db: Path, layer: SemanticLayer, timeout_seconds: float = 30.0, max_rows: int = 5000,
+                 dialect: str = "sqlite"):
         self.reporting_db = reporting_db
         self.layer = layer
+        self.dialect = dialect
         self.timeout_seconds = timeout_seconds
         self.max_rows = max_rows
 
@@ -111,8 +114,19 @@ class QueryService:
         con.set_authorizer(authorizer)
         return con, names, used, base_tables
 
-    def run(self, sql: str, user: User) -> QueryResult:
+    def validate(self, sql: str, user: User) -> str:
+        """Parser-based check (sql_validator) before anything touches the database."""
         text = _clean(sql)
+        try:
+            validate_select(text, {v.name for v in self.layer.views_for(user.role)}, self.dialect)
+        except SQLValidationError as exc:
+            if exc.table in self.layer.views:
+                raise QueryRejected(f"Your role does not have access to {exc.table}.") from exc
+            raise QueryRejected(str(exc)) from exc
+        return text
+
+    def run(self, sql: str, user: User) -> QueryResult:
+        text = self.validate(sql, user)
         con, visible, used, base_tables = self._connect(user)
         named = {word.lower() for word in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", text)}
         if named & {t.lower() for t in base_tables}:

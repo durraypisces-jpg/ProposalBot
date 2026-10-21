@@ -45,6 +45,26 @@ class Settings:
     query_timeout_seconds: float = float(os.getenv("RA_QUERY_TIMEOUT", "30"))
     max_rows: int = int(os.getenv("RA_MAX_ROWS", "5000"))
 
+    # SQL dialect the validator parses: "sqlite" (prototype) or "tsql" (SQL Server).
+    sql_dialect: str = os.getenv("RA_SQL_DIALECT", "sqlite").lower()
+
+    # Optional second model for summaries (e.g. Arctic writes SQL, Qwen writes summaries).
+    summary_model: str = os.getenv("RA_SUMMARY_MODEL", "")
+
+    # Confirm before running: new requests (not in the verified library) are
+    # restated in plain words and run only after the user confirms.
+    confirm_new_requests: bool = os.getenv("RA_CONFIRM_NEW", "1") not in ("", "0", "false")
+    # Show the table and chart first; the summary is fetched separately.
+    defer_summary: bool = os.getenv("RA_DEFER_SUMMARY", "1") not in ("", "0", "false")
+
+    # Token quota per client per month (0 = no limit). Warn at 80%, block at 100%.
+    monthly_token_quota: int = int(os.getenv("RA_MONTHLY_TOKEN_QUOTA", "0"))
+    quota_warning_ratio: float = float(os.getenv("RA_QUOTA_WARNING", "0.8"))
+
+    # Document capture: vision-language model and the portal's approval-workflow API.
+    document_model: str = os.getenv("RA_DOCUMENT_MODEL", "")
+    portal_api_url: str = os.getenv("RA_PORTAL_API_URL", "")  # empty: local stand-in workflow
+
     # Data freshness targets in hours (NFR "Data freshness").
     inventory_refresh_hours: float = float(os.getenv("RA_INVENTORY_REFRESH_HOURS", "1"))
     finance_refresh_hours: float = float(os.getenv("RA_FINANCE_REFRESH_HOURS", "24"))
@@ -60,6 +80,18 @@ class Settings:
     @property
     def app_db(self) -> Path:
         return self.data_dir / "app.db"
+
+    @property
+    def documents_dir(self) -> Path:
+        return self.data_dir / "documents"
+
+    def client_dir(self, client_id: str, default_client: str) -> Path:
+        """Each client's own database folder. The default client uses data_dir."""
+        if client_id == default_client:
+            return self.data_dir
+        if not client_id.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(f"Invalid client id {client_id!r}")
+        return self.data_dir / "clients" / client_id
 
 
 def get_settings() -> Settings:

@@ -1,15 +1,21 @@
-# Gate test question set (proposal sections 8 and 13; NFR "Regression testing").
+# Benchmark questions (proposal: "How accuracy will be judged").
 #
-# Each question has the SQL a finance or operations expert agrees is correct.
-# The runner asks the assistant, runs both queries as the same user, and
-# compares the numbers. In discovery, replace these with 100+ questions taken
-# from reports the client already trusts.
+# The target is 200 real questions from past custom-report tickets, spread
+# across modules and from simple to complex. These sample questions run on the
+# sample data until the client's tickets arrive.
 #
-# "gate" is the gate the question counts towards: 2 = inventory pilot (95%),
-# 3 = finance reports (98%).
+# For each question our data engineer writes the correct SQL (expected_sql) and
+# a business analyst checks it. The runner asks the assistant as `user`, runs
+# both queries as that user and compares rows and values.
+#
+# Fields:
+#   module:  the module the question counts towards; each module needs 100%
+#   ordered: true when the question asks for a sort (row order is then checked)
+#   expect:  "decline" or "clarify" when the right answer is not a report
+#   checked_by: who signed off the expected answer (fill in for real questions)
 
 - id: inv-stock-value-by-site
-  gate: 2
+  module: inventory
   user: omar
   question: "What is the current stock value by site?"
   expected_sql: >
@@ -19,7 +25,7 @@
     GROUP BY l.site_id
 
 - id: inv-own-site-units
-  gate: 2
+  module: inventory
   user: amina
   question: "How many units do we have on hand in total right now?"
   expected_sql: >
@@ -27,7 +33,7 @@
     WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM stock_levels)
 
 - id: inv-reorder-count
-  gate: 2
+  module: inventory
   user: omar
   question: "How many item and site combinations are at or below their reorder level today?"
   expected_sql: >
@@ -36,7 +42,7 @@
       AND l.qty_on_hand <= p.reorder_level
 
 - id: inv-issued-by-category-last-month
-  gate: 2
+  module: inventory
   user: omar
   question: "Units issued by product category last calendar month"
   expected_sql: >
@@ -46,7 +52,7 @@
     GROUP BY p.category
 
 - id: inv-slow-moving-count
-  gate: 2
+  module: inventory
   user: omar
   question: "How many SKUs have had no sales at any site in the last 90 days?"
   expected_sql: >
@@ -55,7 +61,7 @@
                       AND m.movement_date >= date('now', '-90 days'))
 
 - id: inv-receipts-by-site-ytd
-  gate: 2
+  module: inventory
   user: omar
   question: "Units received per site this fiscal year to date"
   expected_sql: >
@@ -67,7 +73,7 @@
     GROUP BY m.site_id
 
 - id: fin-consolidated-revenue-last-closed
-  gate: 3
+  module: finance
   user: david
   question: "Group consolidated revenue for the last closed period"
   expected_sql: >
@@ -76,7 +82,7 @@
       (SELECT MAX(fiscal_year * 100 + fiscal_period) FROM fiscal_periods WHERE is_closed = 1)
 
 - id: fin-entity-opex-local
-  gate: 3
+  module: finance
   user: sara
   question: "Operating expenses last closed period in local currency"
   expected_sql: >
@@ -85,7 +91,7 @@
       (SELECT MAX(fiscal_year * 100 + fiscal_period) FROM fiscal_periods WHERE is_closed = 1)
 
 - id: fin-operating-profit-by-quarter
-  gate: 3
+  module: finance
   user: david
   question: "Consolidated operating profit by fiscal quarter for fiscal year 2026"
   expected_sql: >
@@ -97,7 +103,7 @@
     GROUP BY f.fiscal_quarter
 
 - id: fin-budget-vs-actual-dept
-  gate: 3
+  module: finance
   user: sara
   question: "Budget versus actual operating expenses in USD by department for fiscal year 2026"
   expected_sql: >
@@ -109,7 +115,7 @@
       ON a.department = b.department
 
 - id: fin-revenue-by-entity-q1
-  gate: 3
+  module: finance
   user: david
   question: "Revenue in USD by entity for Q1 of fiscal 2027"
   expected_sql: >
@@ -118,7 +124,7 @@
     GROUP BY entity_id
 
 - id: fin-decline-for-inventory-role
-  gate: 3
+  module: finance
   user: omar
   question: "What was our revenue last month?"
   expect: decline

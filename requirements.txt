@@ -4,10 +4,18 @@ uvicorn>=0.30
 pandas>=2.2
 PyYAML>=6.0
 pydantic>=2.7
-httpx>=0.27          # Grok (xAI) connector
+httpx>=0.27          # vLLM and other OpenAI-compatible model servers
 matplotlib>=3.8
 reportlab>=4.0
 python-docx>=1.1
 openpyxl>=3.1
+sqlglot>=25.0        # SQL validator: parses SQLite and T-SQL
+pypdf>=4.0           # document capture: reads digital PDFs
+python-multipart>=0.0.9  # document uploads
 # tests
 pytest>=8.0
+
+# Production only (install on the servers, not needed for the prototype):
+#   pyodbc               SQL Server connection (reporting_assistant/sqlserver.py)
+#   transformers         the deployed model's own tokenizer, for quota estimates
+#   pytesseract, Pillow  OCR fallback for scans the vision model cannot read

@@ -27,7 +27,8 @@ def settings(data_dir, tmp_path) -> Settings:
     # Shared ERP and reporting store; a fresh app database per test.
     for name in ("erp.db", "reporting.db"):
         (tmp_path / name).symlink_to(data_dir / name)
-    return Settings(data_dir=tmp_path)
+    # Confirm-before-run and its quota are tested on their own (test_proposal_features.py).
+    return Settings(data_dir=tmp_path, confirm_new_requests=False, provider="demo", monthly_token_quota=0)
 
 
 @pytest.fixture(scope="session")

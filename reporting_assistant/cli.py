@@ -6,6 +6,10 @@ question without the web portal.
     python -m reporting_assistant.cli init
     python -m reporting_assistant.cli refresh
     python -m reporting_assistant.cli ask --user omar "Stock value by site"
+    python -m reporting_assistant.cli usage                 # this month's token usage per client
+    python -m reporting_assistant.cli flags                 # flagged results as benchmark stubs
+    python -m reporting_assistant.cli sample-document --type purchase_order --out po.pdf
+    python -m reporting_assistant.cli process-document --user omar --type purchase_order po.pdf
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import argparse
 import json
 import os
 import uuid
+from pathlib import Path
 
 from .assistant import Assistant
 from .auth import demo_user
@@ -36,6 +41,18 @@ def main(argv: list[str] | None = None) -> None:
     ask = sub.add_parser("ask", help="Ask for a report")
     ask.add_argument("--user", default="admin")
     ask.add_argument("request")
+    usage = sub.add_parser("usage", help="Token usage this month (proposal: Token Metering)")
+    usage.add_argument("--month", default=None, help="YYYY-MM (default: this month)")
+    sub.add_parser("flags", help="Print open flagged results as stubs for eval/questions.yaml")
+    sample = sub.add_parser("sample-document", help="Write a sample PO, purchase request or item-creation PDF")
+    sample.add_argument("--type", default="purchase_order", choices=["purchase_order", "purchase_request", "item_creation"])
+    sample.add_argument("--number", default="PO-2026-0412")
+    sample.add_argument("--mistake", action="store_true", help="Make the order total wrong (goes to review)")
+    sample.add_argument("--out", required=True)
+    process = sub.add_parser("process-document", help="Capture a document: extract, check, create a draft")
+    process.add_argument("--user", default="omar")
+    process.add_argument("--type", default="purchase_order", choices=["purchase_order", "purchase_request", "item_creation"])
+    process.add_argument("path")
     args = parser.parse_args(argv)
 
     if args.command == "setup":
@@ -43,6 +60,9 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(0 if run_setup() else 1)
 
     settings = get_settings()
+    if args.command in ("sample-document", "process-document") and not settings.reporting_db.exists():
+        print(f"No sample data in {settings.data_dir}. Run first: python -m reporting_assistant.cli init")
+        raise SystemExit(1)
     if args.command == "check":
         raise SystemExit(0 if check(settings) else 1)
     if args.command == "init":
@@ -50,6 +70,31 @@ def main(argv: list[str] | None = None) -> None:
         print(json.dumps(refresh_reporting_store(settings.erp_db, settings.reporting_db), indent=2))
     elif args.command == "refresh":
         print(json.dumps(refresh_reporting_store(settings.erp_db, settings.reporting_db), indent=2))
+    elif args.command == "usage":
+        store = AppStore(settings.app_db)
+        layer = load_semantic_layer(settings.semantic_layer_path)
+        for client_id in layer.clients:
+            print(json.dumps({"client_id": client_id, **store.monthly_usage(client_id, args.month)}))
+    elif args.command == "flags":
+        print_flags(AppStore(settings.app_db))
+    elif args.command == "sample-document":
+        from .sample_documents import sample_lines, sample_pdf
+        lines = sample_lines(args.type, settings.reporting_db, args.number, args.mistake)
+        Path(args.out).write_bytes(sample_pdf(lines, args.type.replace("_", " ").title()))
+        print(f"Wrote {args.out}")
+    elif args.command == "process-document":
+        from .app import make_extractor
+        from .documents import DocumentService, LocalApprovalWorkflow, ReportingStoreMasterData
+        layer = load_semantic_layer(settings.semantic_layer_path)
+        service = DocumentService(AppStore(settings.app_db), make_extractor(settings),
+                                  LocalApprovalWorkflow(settings.data_dir / "approval_workflow.db"),
+                                  lambda _client: ReportingStoreMasterData(settings.reporting_db),
+                                  settings.documents_dir)
+        path = Path(args.path)
+        document_id = service.upload(demo_user(layer, args.user), args.type, path.name, path.read_bytes())
+        doc = service.process(document_id)
+        print(json.dumps({k: doc[k] for k in ("id", "status", "read_method", "draft_id", "issues", "extracted")},
+                         indent=2, default=str))
     else:
         layer = load_semantic_layer(settings.semantic_layer_path)
         assistant = Assistant(
@@ -68,6 +113,19 @@ def main(argv: list[str] | None = None) -> None:
         print(report["narrative"], "\n")
         print(report["sql"], "\n")
         print(json.dumps(report["statistics"], indent=2))
+
+
+def print_flags(store: AppStore, say=print) -> None:
+    """Flagged results go to the dev team and are added to the benchmark: each
+    becomes a question stub; the data engineer fills in expected_sql."""
+    flags = store.flags(status="open")
+    if not flags:
+        say("# No open flags.")
+        return
+    for flag in flags:
+        say(f"- id: flagged-{flag['id']}\n  module: TODO\n  user: {flag['username']}\n"
+            f"  question: {json.dumps(flag['request'])}\n  # flagged {flag['at']}: {flag['reason'] or 'no reason given'}\n"
+            f"  # generated SQL: {' '.join(flag['sql'].split())}\n  expected_sql: >\n    TODO\n")
 
 
 def check(settings, say=print) -> bool:
@@ -91,7 +149,7 @@ def check(settings, say=print) -> bool:
     if spec is None:
         say(f"Unknown provider {provider!r}. Run: python -m reporting_assistant.cli setup")
         return False
-    key = os.getenv(spec.key_env, "") if spec.key_env else ""
+    key = os.getenv(spec.key_env or spec.optional_key_env or "", "") if (spec.key_env or spec.optional_key_env) else ""
     if spec.key_env and not key:
         say(f"No key: {spec.key_env} is not set. Run: python -m reporting_assistant.cli setup")
         return False

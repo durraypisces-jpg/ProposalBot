@@ -19,6 +19,9 @@ class User:
     role: Role
     sites: tuple[str, ...] = field(default_factory=tuple)
     entities: tuple[str, ...] = field(default_factory=tuple)
+    # Which client (and so which client database) the user belongs to. Comes
+    # from the login token only; text in the chat can never change it.
+    client_id: str = "demo-client"
 
     def scope_values(self, scope: str) -> tuple[str, ...]:
         """Values this user is limited to for a row filter scope ("sites" or "entities")."""
@@ -41,12 +44,15 @@ def user_from_claims(layer: SemanticLayer, claims: dict) -> User:
     role_name = claims["role"]
     if role_name not in layer.roles:
         raise UnknownUser(f"Unknown role {role_name!r}")
+    if claims.get("client_id") and claims["client_id"] not in layer.clients:
+        raise UnknownUser(f"Unknown client {claims['client_id']!r}")
     return User(
         username=claims["username"],
         name=claims.get("name", claims["username"]),
         role=layer.roles[role_name],
         sites=tuple(claims.get("sites", ())),
         entities=tuple(claims.get("entities", ())),
+        client_id=claims.get("client_id") or layer.default_client,
     )
 
 

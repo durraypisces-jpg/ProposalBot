@@ -162,6 +162,7 @@ roles:
   ops_lead:
     label: "Operations or procurement lead"
     domains: [inventory]
+    can_capture_documents: true   # may upload POs, purchase requests and item-creation documents
   finance_user:
     label: "Finance user"
     domains: [finance]
@@ -176,15 +177,24 @@ roles:
     domains: [inventory, finance]
     consolidated: true
     can_administer: true
+    can_capture_documents: true
+
+# Each client has its own database (proposal: Data isolation). The client
+# always comes from the login session, never from the chat. The first client
+# uses the data directory itself; others use <data dir>/clients/<client id>/.
+clients:
+  demo-client: {name: "Demo Trading Co.", sample_seed: 42}
+  beta-client: {name: "Beta Bank Ltd.", sample_seed: 7}
 
 # Demo users stand in for single sign-on (FR-01) until the client's identity
 # provider is connected.
 demo_users:
-  - {username: amina, name: "Amina (North warehouse)", role: warehouse_manager, sites: [WH-NORTH]}
-  - {username: omar, name: "Omar (Operations)", role: ops_lead}
-  - {username: sara, name: "Sara (Finance, Pakistan entity)", role: finance_user, entities: [PK01]}
-  - {username: david, name: "David (CEO)", role: executive}
-  - {username: admin, name: "System administrator", role: admin}
+  - {username: amina, name: "Amina (North warehouse)", role: warehouse_manager, sites: [WH-NORTH], client_id: demo-client}
+  - {username: omar, name: "Omar (Operations)", role: ops_lead, client_id: demo-client}
+  - {username: sara, name: "Sara (Finance, Pakistan entity)", role: finance_user, entities: [PK01], client_id: demo-client}
+  - {username: david, name: "David (CEO)", role: executive, client_id: demo-client}
+  - {username: admin, name: "System administrator", role: admin, client_id: demo-client}
+  - {username: bilal, name: "Bilal (Operations, Beta Bank)", role: ops_lead, client_id: beta-client}
 
 # FR-11: standard report templates alongside free-form requests.
 templates:

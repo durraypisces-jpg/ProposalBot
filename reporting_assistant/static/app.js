@@ -64,10 +64,12 @@ async function start() {
   $("who-name").textContent = state.user.name;
   $("who-scope").textContent = state.user.scope;
   $("admin-tools").hidden = !state.user.can_administer;
+  $("document-tools").hidden = !state.user.can_capture_documents;
   newConversation();
   loadTemplates();
   loadFavourites();
   loadStatus();
+  loadUsage();
 }
 
 // Sidebar
@@ -92,6 +94,16 @@ async function loadStatus() {
   const { data_as_of } = await getJSON("/api/status");
   $("data-status").textContent = "Data as of (UTC): " +
     Object.entries(data_as_of).map(([d, t]) => `${d} ${t.replace("T", " ").slice(0, 16)}`).join(" · ");
+}
+
+async function loadUsage() {
+  try {
+    const { month, quota } = await getJSON("/api/usage");
+    const used = month.billable_tokens.toLocaleString();
+    $("usage-status").textContent = quota.limit
+      ? `AI usage this month: ${used} of ${quota.limit.toLocaleString()} tokens`
+      : `AI usage this month: ${used} tokens (${month.billable_requests} requests)`;
+  } catch { $("usage-status").textContent = ""; }
 }
 
 function newConversation() {
@@ -120,13 +132,43 @@ async function send(text) {
   try {
     const reply = await postJSON("/api/chat", { message: text, session_id: state.sessionId });
     state.sessionId = reply.session_id;
-    pending.replaceWith(reply.kind === "report" ? renderReport(reply.report)
-      : el("div", { class: `bubble assistant-bubble ${reply.kind}` }, reply.message));
+    pending.replaceWith(renderReply(reply));
   } catch (error) {
     pending.replaceWith(el("div", { class: "bubble assistant-bubble error" }, error.message));
   } finally {
     $("send").disabled = false;
+    loadUsage();
   }
+}
+
+function renderReply(reply) {
+  const parts = [];
+  if (reply.notice) parts.push(el("div", { class: "bubble assistant-bubble notice" }, reply.notice));
+  if (reply.kind === "report") parts.push(renderReport(reply.report));
+  else if (reply.kind === "confirm") parts.push(renderConfirm(reply));
+  else parts.push(el("div", { class: `bubble assistant-bubble ${reply.kind}` }, reply.message));
+  return parts.length === 1 ? parts[0] : el("div", {}, parts);
+}
+
+// Confirm before running: the assistant restates the request; the user confirms or corrects it.
+function renderConfirm(reply) {
+  const box = el("div", { class: "bubble assistant-bubble confirm" }, el("p", {}, reply.message));
+  const run = el("button", { class: "button small", onclick: async () => {
+    run.disabled = true; change.disabled = true;
+    const working = el("div", { class: "bubble assistant-bubble muted" }, "Running the report…");
+    box.after(working);
+    try {
+      working.replaceWith(renderReply(await postJSON("/api/chat/confirm", { pending_id: reply.pending_id })));
+    } catch (error) {
+      working.replaceWith(el("div", { class: "bubble assistant-bubble error" }, error.message));
+    } finally { loadUsage(); }
+  } }, "Yes, run it");
+  const change = el("button", { class: "button secondary small", onclick: () => {
+    run.disabled = true; change.disabled = true;
+    $("input").placeholder = "Tell me what to change…"; $("input").focus();
+  } }, "Change it");
+  box.append(el("div", { class: "actions" }, run, change));
+  return box;
 }
 
 // Report rendering
@@ -143,8 +185,22 @@ function renderReport(report) {
     el("h2", {}, report.title),
     report.provisional ? el("span", { class: "badge warn" }, "Provisional: open period") : null,
     report.source.stale_domains.length ? el("span", { class: "badge warn" }, `Data older than target: ${report.source.stale_domains.join(", ")}`) : null,
+    report.verified ? el("span", { class: "badge ok" }, "Verified report") : null,
   ));
-  if (report.narrative) card.append(el("p", { class: "narrative" }, report.narrative));
+  // Two steps: the table and chart show first; the short summary follows.
+  const narrative = el("p", { class: "narrative" }, report.narrative || "");
+  if (report.summary_pending) {
+    narrative.classList.add("muted");
+    narrative.textContent = "Writing a short summary…";
+    getJSON(`/api/reports/${report.id}/summary`)
+      .then(({ narrative: text }) => {
+        narrative.classList.remove("muted");
+        if (text) narrative.textContent = text; else narrative.remove();
+        loadUsage();
+      })
+      .catch(() => narrative.remove());
+  }
+  if (report.narrative || report.summary_pending) card.append(narrative);
 
   const stats = report.statistics.measures.slice(0, 4);
   if (stats.length) {
@@ -181,6 +237,9 @@ function renderReport(report) {
       { pdf: "PDF", docx: "Word", xlsx: "Excel" }[f])),
     el("button", { class: "button secondary small", onclick: () => saveFavourite(report) }, "Save"),
     el("button", { class: "link", onclick: () => { sqlBox.hidden = !sqlBox.hidden; } }, "Show query"),
+    el("button", { class: "link", title: "Tell the team this result looks wrong", onclick: (e) => flagReport(report, e.target) }, "Flag as wrong"),
+    state.user.can_administer && !report.verified
+      ? el("button", { class: "link", title: "Repeat questions will reuse this checked query", onclick: (e) => verifyReport(report, e.target) }, "Mark as verified") : null,
   ), sqlBox);
   return card;
 }
@@ -252,15 +311,129 @@ async function saveFavourite(report) {
   loadFavourites();
 }
 
+async function flagReport(report, button) {
+  const reason = prompt("What looks wrong in this result? It goes to the development team.");
+  if (reason === null) return;
+  await postJSON(`/api/reports/${report.id}/flag`, { reason });
+  button.textContent = "Flagged, thank you"; button.disabled = true;
+}
+
+async function verifyReport(report, button) {
+  if (!confirm("Mark this report as checked? Repeat questions will reuse this exact query.")) return;
+  await postJSON(`/api/admin/verified/${report.id}`, {});
+  button.textContent = "Verified"; button.disabled = true;
+}
+
 // Administration
 
+function showTable(title, rows, cols, extra = null) {
+  $("dialog-title").textContent = title;
+  $("audit-body").replaceChildren(
+    rows.length ? el("table", {},
+      el("thead", {}, el("tr", {}, cols.map((c) => el("th", {}, label(c))), extra ? el("th", {}) : null)),
+      el("tbody", {}, rows.map((r) => el("tr", {}, cols.map((c) => el("td", {}, fmt(r[c]))), extra ? el("td", {}, extra(r)) : null))))
+      : el("p", { class: "muted" }, "Nothing here yet."));
+  if (!$("audit-dialog").open) $("audit-dialog").showModal();
+}
+
 async function showAudit() {
-  const rows = await getJSON("/api/admin/audit");
-  const cols = ["at", "username", "role", "request", "outcome", "row_count", "duration_ms", "detail"];
-  $("audit-body").replaceChildren(el("table", {},
-    el("thead", {}, el("tr", {}, cols.map((c) => el("th", {}, label(c))))),
-    el("tbody", {}, rows.map((r) => el("tr", {}, cols.map((c) => el("td", {}, fmt(r[c]))))))));
-  $("audit-dialog").showModal();
+  showTable("Audit log", await getJSON("/api/admin/audit"),
+    ["at", "username", "role", "request", "outcome", "row_count", "duration_ms", "detail"]);
+}
+
+async function showUsageLog() {
+  showTable("Token usage", await getJSON("/api/admin/usage"),
+    ["created_at", "user_id", "module", "model", "input_tokens", "output_tokens", "reasoning_tokens", "status", "billable"]);
+}
+
+async function showFlags() {
+  showTable("Flagged results", await getJSON("/api/admin/flags"), ["at", "username", "request", "reason", "status"],
+    (f) => f.status === "open" ? el("button", { class: "link", onclick: async () => {
+      await postJSON(`/api/admin/flags/${f.id}/close`, {}); showFlags();
+    } }, "Close") : null);
+}
+
+async function showVerified() {
+  showTable("Verified reports", await getJSON("/api/admin/verified"), ["at", "module", "request", "title", "verified_by"],
+    (v) => el("button", { class: "link", onclick: async () => {
+      await api(`/api/admin/verified/${v.id}`, { method: "DELETE" }); showVerified();
+    } }, "Retire"));
+}
+
+// Document capture: upload, see the result, correct it on the review screen.
+
+const STATUS_LABELS = { queued: "Queued", processing: "Reading…", draft_created: "Draft created", needs_review: "Needs review" };
+
+async function waitForDocument(id) {
+  // Documents are processed from a queue: check until reading and checks are done.
+  for (let i = 0; i < 60; i++) {
+    const doc = await getJSON(`/api/documents/${id}`);
+    if (!["queued", "processing"].includes(doc.status)) return doc;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return null;
+}
+
+async function showDocuments() {
+  state.documentView = "list";
+  const types = await getJSON("/api/documents/types");
+  const docs = await getJSON("/api/documents");
+  const select = el("select", { id: "doc-type" }, types.map((t) => el("option", { value: t.id }, t.label)));
+  const file = el("input", { type: "file", accept: ".pdf,.png,.jpg,.jpeg,.tif,.tiff" });
+  const upload = el("form", { class: "upload", onsubmit: async (event) => {
+    event.preventDefault();
+    if (!file.files.length) return;
+    const form = new FormData();
+    form.append("doc_type", select.value);
+    form.append("file", file.files[0]);
+    const response = await fetch("/api/documents", { method: "POST", body: form, headers: { Authorization: `Bearer ${state.token}` } });
+    if (!response.ok) { alert((await response.json()).detail || "Upload failed"); return; }
+    const { id } = await response.json();
+    showDocuments();
+    await waitForDocument(id);
+    if (state.documentView === "list" && $("documents-dialog").open) showDocuments();
+  } }, select, file, el("button", { class: "button small", type: "submit" }, "Upload"));
+  $("documents-body").replaceChildren(upload,
+    docs.length ? el("table", {},
+      el("thead", {}, el("tr", {}, ["Uploaded", "Type", "File", "Status", "Draft"].map((c) => el("th", {}, c)), el("th", {}))),
+      el("tbody", {}, docs.map((d) => el("tr", {},
+        el("td", {}, d.at.replace("T", " ").slice(0, 16)), el("td", {}, label(d.doc_type)), el("td", {}, d.filename),
+        el("td", {}, el("span", { class: `badge ${d.status === "draft_created" ? "ok" : d.status === "needs_review" ? "warn" : ""}` }, STATUS_LABELS[d.status] || d.status)),
+        el("td", {}, d.draft_id || ""),
+        el("td", {}, el("button", { class: "link", onclick: () => showDocument(d.id) }, d.status === "needs_review" ? "Review" : "Open"))))))
+      : el("p", { class: "muted" }, "No documents yet. Upload a PO, purchase request or item-creation document."));
+  if (!$("documents-dialog").open) $("documents-dialog").showModal();
+}
+
+async function showDocument(id) {
+  state.documentView = id;
+  const doc = await getJSON(`/api/documents/${id}`);
+  const blob = await (await api(`/api/documents/${id}/file`)).blob();
+  const viewer = el(blob.type.startsWith("image/") ? "img" : "iframe", { class: "doc-view", src: URL.createObjectURL(blob), title: doc.filename });
+  const editor = el("textarea", { class: "doc-fields", rows: 22, spellcheck: "false" }, JSON.stringify(doc.extracted || {}, null, 2));
+  const accept = el("input", { type: "checkbox", id: "accept-warnings" });
+  const issues = (doc.issues || []).map((i) => el("li", { class: i.severity }, el("strong", {}, i.field), `: ${i.message}`));
+  const editable = doc.status === "needs_review";
+  if (!editable) editor.setAttribute("readonly", "readonly");
+  const submit = el("button", { class: "button small", onclick: async () => {
+    let data;
+    try { data = JSON.parse(editor.value); } catch { alert("The fields are not valid JSON."); return; }
+    try {
+      const result = await postJSON(`/api/documents/${id}/review`, { data, accept_warnings: accept.checked });
+      if (result.status === "draft_created") { alert(`Draft ${result.draft_id} created in the approval workflow.`); showDocuments(); }
+      else showDocument(id);
+    } catch (error) { alert(error.message); }
+  } }, "Check and create draft");
+  $("documents-body").replaceChildren(
+    el("button", { class: "link", onclick: showDocuments }, "← All documents"),
+    el("div", { class: "doc-review" },
+      viewer,
+      el("div", {},
+        el("h3", {}, `${label(doc.doc_type)} · ${STATUS_LABELS[doc.status] || doc.status}`),
+        doc.draft_id ? el("p", {}, `Draft ${doc.draft_id} is waiting for approval in the portal workflow.`) : null,
+        issues.length ? el("ul", { class: "issues" }, issues) : el("p", { class: "muted" }, "All checks passed."),
+        editor,
+        editable ? el("div", { class: "actions" }, el("label", { class: "small" }, accept, " Accept warnings (not errors)"), submit) : null)));
 }
 
 // Wiring
@@ -276,6 +449,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("new-chat").addEventListener("click", newConversation);
   $("sign-out").addEventListener("click", signOut);
   $("show-audit").addEventListener("click", showAudit);
+  $("show-usage").addEventListener("click", showUsageLog);
+  $("show-flags").addEventListener("click", showFlags);
+  $("show-verified").addEventListener("click", showVerified);
+  $("show-documents").addEventListener("click", showDocuments);
+  $("close-documents").addEventListener("click", () => $("documents-dialog").close());
   $("close-audit").addEventListener("click", () => $("audit-dialog").close());
   $("refresh-data").addEventListener("click", async () => {
     $("data-status").textContent = "Refreshing…";

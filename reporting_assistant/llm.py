@@ -14,6 +14,8 @@ the new user message, so no assistant turns are replayed.
 from __future__ import annotations
 
 import json
+import threading
+from dataclasses import dataclass
 from typing import Literal, Protocol
 
 import anthropic
@@ -98,6 +100,23 @@ at most 6 slices, table when a chart would not help. Fill measures with the nume
 If the user is refining an earlier report ("now by month"), start from the previous SQL in the conversation."""
 
 
+TSQL_RULES = """- Microsoft SQL Server (T-SQL) dialect. Use TOP n, never LIMIT. Use only the views and columns listed.
+- Dates: DATEADD, DATEDIFF, EOMONTH, CAST(GETDATE() AS date). Months: FORMAT(movement_date, 'yyyy-MM') AS month.
+- Money: CAST(ROUND(x, 2) AS DECIMAL(18, 2)). Never use temporary tables, variables, EXEC or SELECT INTO."""
+
+
+def planner_instructions(dialect: str = "sqlite") -> str:
+    """The planner prompt for the database the client runs (proposal: SQL Server -> T-SQL)."""
+    if dialect != "tsql":
+        return PLANNER_INSTRUCTIONS
+    text = PLANNER_INSTRUCTIONS.replace("Write ONE SQLite SELECT", "Write ONE T-SQL SELECT")
+    text = text.replace("- SQLite dialect. Use only the views and columns listed. Never reference tables named src_* or "
+                        "anything else.", TSQL_RULES)
+    return text.replace("strftime('%Y-%m', movement_date) AS month", "FORMAT(movement_date, 'yyyy-MM') AS month") \
+               .replace("printf('FY%d-P%02d', fiscal_year, fiscal_period)",
+                        "CONCAT('FY', fiscal_year, '-P', FORMAT(fiscal_period, '00'))")
+
+
 NO_CREDENTIALS = ("No Claude credentials found. Set ANTHROPIC_API_KEY, or choose another provider with "
                   "RA_PROVIDER (gemini, groq, openrouter or grok) and its key - see the README.")
 
@@ -106,15 +125,58 @@ class LLMRefused(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class Usage:
+    """Token counts for one model call, as reported by the model server.
+    These are the billing figures (proposal: Token Metering)."""
+    model: str
+    input_tokens: int
+    output_tokens: int
+    reasoning_tokens: int = 0  # part of output_tokens
+
+
+class UsageTracker:
+    """Collects the Usage of every model call made by the current thread, so the
+    assistant can add all calls in one request (plan, retry, summary) to the
+    same usage record. Each web request runs in its own thread."""
+
+    def __init__(self) -> None:
+        self._usage_local = threading.local()
+
+    def _record_usage(self, usage: Usage) -> None:
+        if not hasattr(self, "_usage_local"):
+            self._usage_local = threading.local()
+        calls = getattr(self._usage_local, "calls", None)
+        if calls is None:
+            calls = self._usage_local.calls = []
+        calls.append(usage)
+
+    def take_usage(self) -> list[Usage]:
+        """Return the calls recorded since the last take and forget them."""
+        local = getattr(self, "_usage_local", None)
+        calls = getattr(local, "calls", None) or []
+        if local is not None:
+            local.calls = []
+        return calls
+
+
+def take_usage(planner: object) -> list[Usage]:
+    """Usage from any planner; planners without metering (test fakes) report none."""
+    take = getattr(planner, "take_usage", None)
+    return take() if callable(take) else []
+
+
 class Planner(Protocol):
     def plan(self, context: str, request: str) -> Plan: ...
 
     def narrate(self, payload: dict) -> str: ...
 
 
-class ClaudePlanner:
+class ClaudePlanner(UsageTracker):
     def __init__(self, model: str, plan_effort: str = "high", narrative_effort: str = "low",
-                 client: anthropic.Anthropic | None = None):
+                 client: anthropic.Anthropic | None = None, sql_dialect: str = "sqlite"):
+        super().__init__()
+        self.instructions = planner_instructions(sql_dialect)
         self.client = client or anthropic.Anthropic()
         self.model = model
         self.plan_effort = plan_effort
@@ -130,6 +192,12 @@ class ClaudePlanner:
             if "authentication" not in str(exc):
                 raise
             raise RuntimeError(NO_CREDENTIALS) from exc
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            input_tokens = sum(int(getattr(usage, name, 0) or 0) for name in
+                               ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+            self._record_usage(Usage(str(getattr(response, "model", self.model)), input_tokens,
+                                     int(getattr(usage, "output_tokens", 0) or 0)))
         if response.stop_reason == "refusal":
             raise LLMRefused("The language model declined this request.")
         return next((b.text for b in response.content if b.type == "text"), "")
@@ -149,7 +217,7 @@ class ClaudePlanner:
         # The schema and rules for a role are stable, so they are cached;
         # today's date and the request go in the user message.
         system = [
-            {"type": "text", "text": PLANNER_INSTRUCTIONS},
+            {"type": "text", "text": self.instructions},
             {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},
         ]
         text = self._create(system=system, content=request, effort=self.plan_effort, schema=PLAN_SCHEMA)

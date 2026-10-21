@@ -39,6 +39,20 @@ Claude or a free hosted model for testing on sample data.
 | Audit log | Every request: user, question, SQL, rows, tokens, time, outcome. Every document: original file, extracted values, checks, draft, reviewer | `store.py` |
 | Accuracy: how it is judged | Same rows and values as the correct answer (column and row order ignored unless the question asks for a sort); 100% per module; red-team must have zero breaches | `eval/run_eval.py`, `eval/questions.yaml`, `eval/redteam.yaml` |
 
+## Open in Visual Studio Code
+
+1. Install Python 3.11+ and VS Code, then the **Python** extension (VS Code suggests it when you open the folder).
+2. Get the code: `git clone https://github.com/durraypisces-jpg/ProposalBot.git`, then
+   `git checkout claude/modest-franklin-b8m6bn`, and open the folder with **File > Open Folder**.
+3. Make a virtual environment: **Ctrl+Shift+P > Python: Create Environment > Venv**, and tick
+   `requirements.txt` so it installs everything.
+4. Press **Ctrl+Shift+D**, choose **Portal (demo mode, no AI key)** and press **F5**. Open http://localhost:8000.
+5. Tests: the flask icon in the left bar (Testing) runs all of them, or **Terminal > Run Task > Run tests**.
+
+Other ready-made launch options: the portal with the AI in `.env`, the portal with a local vLLM server, the
+AI setup wizard, the benchmark and red-team, and processing a sample purchase order. Breakpoints work in
+all of them.
+
 ## Quick start
 
 **Easiest way to connect an AI:** run the setup wizard once. It asks which AI to use, takes your key

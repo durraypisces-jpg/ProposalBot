@@ -1,0 +1,34 @@
+{
+  // Terminal > Run Task...
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install requirements",
+      "type": "shell",
+      "command": "python -m pip install -r requirements.txt",
+      "problemMatcher": []
+    },
+    {
+      "label": "Create sample data",
+      "type": "shell",
+      "command": "python -m reporting_assistant.cli init",
+      "problemMatcher": []
+    },
+    {
+      "label": "Make sample purchase order",
+      "type": "shell",
+      "command": "python -m reporting_assistant.cli init > /dev/null && python -m reporting_assistant.cli sample-document --type purchase_order --out var/sample_po.pdf",
+      "windows": {
+        "command": "python -m reporting_assistant.cli init > $null; python -m reporting_assistant.cli sample-document --type purchase_order --out var/sample_po.pdf"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "python -m pytest -q",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

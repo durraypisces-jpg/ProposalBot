@@ -1,0 +1,62 @@
+{
+  // Run and Debug panel (Ctrl+Shift+D): pick one of these and press F5.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Portal (demo mode, no AI key)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["reporting_assistant.app:app", "--port", "8000"],
+      "env": { "RA_DEMO_MODE": "1" },
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Portal (AI from .env)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["reporting_assistant.app:app", "--port", "8000"],
+      "justMyCode": true
+    },
+    {
+      "name": "Portal (local vLLM server)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["reporting_assistant.app:app", "--port", "8000"],
+      "env": {
+        "RA_PROVIDER": "vllm",
+        "VLLM_BASE_URL": "http://localhost:8001/v1",
+        "RA_LLM_MODEL": "arctic-text2sql-r1-7b"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "Set up AI connection (wizard)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reporting_assistant.cli",
+      "args": ["setup"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Benchmark and red-team (eval)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "eval.run_eval",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Process a sample purchase order",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "reporting_assistant.cli",
+      "args": ["process-document", "--user", "omar", "--type", "purchase_order", "var/sample_po.pdf"],
+      "preLaunchTask": "Make sample purchase order",
+      "env": { "RA_DEMO_MODE": "1" },
+      "console": "integratedTerminal"
+    }
+  ]
+}

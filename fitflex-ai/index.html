@@ -6,24 +6,30 @@
 <title>FitFlex AI</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
-/* Layout: chat window on the left, "My Day" tracker on the right; stacks on phones. */
+/* Layout: robot header, then chat + "brain view" on the left and the health dashboard on the right; stacks on phones. */
 :root {
   --bg: #eaf3f4;
   --surface: #ffffff;
   --ink: #12313a;
   --muted: #557079;
   --line: #cfe0e3;
-  --teal: #0c7f74;      /* FitFlex brand colour */
+  --teal: #0c7f74;
   --teal-soft: #d5efeb;
   --water: #2a74c9;
   --water-soft: #dbe9f8;
   --move: #d9661f;
   --move-soft: #fbe5d6;
+  --sleep: #6a4fc4;
+  --sleep-soft: #e6e0f8;
+  --gold: #b7860b;
+  --gold-soft: #fbf0cf;
   --alert: #b3261e;
   --alert-soft: #fbe2e0;
   --bot-bubble: #f2f8f8;
+  --face: #0f3d3a;      /* the robot's screen is dark in both themes, like a real device */
+  --eye: #6ef0d8;
   --font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
 }
@@ -31,56 +37,91 @@
   :root:not([data-theme="light"]) {
     --bg: #0d1c20; --surface: #142a30; --ink: #e3f1f2; --muted: #93b0b6; --line: #24434a;
     --teal: #3cc2b1; --teal-soft: #173f3b; --water: #6aa8ee; --water-soft: #17304b;
-    --move: #f2944f; --move-soft: #43281a; --alert: #ff8a80; --alert-soft: #45201d;
-    --bot-bubble: #1a3439; color-scheme: dark;
+    --move: #f2944f; --move-soft: #43281a; --sleep: #a893f0; --sleep-soft: #2b2448;
+    --gold: #f0c24e; --gold-soft: #3d3216; --alert: #ff8a80; --alert-soft: #45201d;
+    --bot-bubble: #1a3439; --face: #071a19; --eye: #6ef0d8; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0d1c20; --surface: #142a30; --ink: #e3f1f2; --muted: #93b0b6; --line: #24434a;
   --teal: #3cc2b1; --teal-soft: #173f3b; --water: #6aa8ee; --water-soft: #17304b;
-  --move: #f2944f; --move-soft: #43281a; --alert: #ff8a80; --alert-soft: #45201d;
-  --bot-bubble: #1a3439; color-scheme: dark;
+  --move: #f2944f; --move-soft: #43281a; --sleep: #a893f0; --sleep-soft: #2b2448;
+  --gold: #f0c24e; --gold-soft: #3d3216; --alert: #ff8a80; --alert-soft: #45201d;
+  --bot-bubble: #1a3439; --face: #071a19; --eye: #6ef0d8; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 16px/1.5 var(--font-body);
-  padding-block: 20px 32px;
+  padding-block: 18px 32px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 18px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+button { font-family: var(--font-body); }
+:focus-visible { outline: 3px solid var(--water); outline-offset: 2px; }
 
-header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.robot { width: 64px; height: 64px; flex: none; }
-.robot .eye { fill: var(--teal); transform-origin: center; transform-box: fill-box; animation: blink 5s infinite; }
+/* ---------- Header + robot face ---------- */
+header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.robot { width: 108px; height: 90px; flex: none; color: var(--ink); }
+.robot .head { fill: var(--surface); stroke: currentColor; stroke-width: 4; }
+.robot .screen { fill: var(--face); }
+.robot .eyes { transition: transform 0.3s; }
+.robot .eye { fill: var(--eye); transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; transition: transform 0.3s; }
+.robot #mouth { stroke: var(--eye); stroke-width: 4; stroke-linecap: round; fill: none; transform-box: fill-box; transform-origin: center; }
+.robot .brow { stroke: var(--eye); stroke-width: 3; stroke-linecap: round; opacity: 0; transition: opacity 0.3s; }
+.robot .cheek { fill: var(--move); opacity: 0; transition: opacity 0.3s; }
+.robot .bulb { fill: var(--move); }
+.robot.mood-think .eyes { transform: translate(5px, -4px); }
+.robot.mood-think .bulb { animation: pulse 0.8s infinite alternate; }
+.robot.mood-worried .brow { opacity: 1; }
+.robot.mood-party .eye { transform: scaleY(0.35); animation: none; }
+.robot.mood-party .cheek { opacity: 0.8; }
+.robot.mood-party #mouth { fill: var(--eye); }
+.robot.talking #mouth { animation: talk 0.18s infinite alternate; }
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
-@media (prefers-reduced-motion: reduce) { .robot .eye { animation: none; } }
-h1 { font: 800 2.1rem/1 var(--font-display); margin: 0; letter-spacing: -0.01em; }
+@keyframes pulse { to { opacity: 0.25; } }
+@keyframes talk { to { transform: scaleY(0.4); } }
+@media (prefers-reduced-motion: reduce) { .robot *, .robot { animation: none !important; transition: none !important; } }
+.title-block { display: grid; gap: 4px; min-width: 0; }
+h1 { font: 800 2.3rem/1 var(--font-display); margin: 0; letter-spacing: -0.01em; }
 h1 span { color: var(--teal); }
-.tagline { margin: 2px 0 0; color: var(--muted); }
+.tagline { margin: 0; color: var(--muted); }
+.status { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; font-weight: 700; }
+.pill { border-radius: 999px; padding: 3px 10px; background: var(--teal-soft); color: var(--teal); }
+.pill.gold { background: var(--gold-soft); color: var(--gold); }
+.pill.move { background: var(--move-soft); color: var(--move); }
 .sdg {
-  margin-left: auto; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--teal); background: var(--teal-soft); border-radius: 999px; padding: 6px 12px;
+  margin-left: auto; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--teal); border: 2px solid var(--teal); border-radius: 12px; padding: 6px 12px; text-align: center;
 }
 
-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 820px) { main { grid-template-columns: minmax(0, 1fr); } .sdg { margin-left: 0; } }
+main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } .sdg { margin-left: 0; } }
+.col { display: grid; gap: 14px; min-width: 0; }
 
 /* ---------- Chat ---------- */
 .chat {
   background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-  display: flex; flex-direction: column; height: min(640px, 78vh); min-height: 420px; min-width: 0;
+  display: flex; flex-direction: column; height: min(620px, 76vh); min-height: 440px; min-width: 0;
 }
-.messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-.msg { max-width: 82%; padding: 10px 14px; border-radius: 16px; white-space: pre-line; overflow-wrap: anywhere; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.tool {
+  font: 700 0.85rem var(--font-body); color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; cursor: pointer;
+}
+.tool[aria-pressed="true"] { background: var(--teal); color: var(--surface); border-color: var(--teal); }
+.tool.coach { background: var(--move); color: var(--surface); border-color: var(--move); }
+.messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 84%; padding: 10px 14px; border-radius: 16px; white-space: pre-line; overflow-wrap: anywhere; }
 .msg.bot { background: var(--bot-bubble); border: 1px solid var(--line); border-bottom-left-radius: 4px; align-self: flex-start; }
 .msg.user { background: var(--teal); color: var(--surface); border-bottom-right-radius: 4px; align-self: flex-end; }
 .msg.safety { background: var(--alert-soft); border-color: var(--alert); }
 .msg.reminder { background: var(--water-soft); border-color: var(--water); }
+.msg.win { background: var(--gold-soft); border-color: var(--gold); }
 .typing { color: var(--muted); font-style: italic; font-size: 0.9rem; padding-left: 4px; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 10px; }
 .chip {
   font: 700 0.88rem var(--font-body); color: var(--teal); background: var(--teal-soft);
   border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; cursor: pointer;
@@ -91,28 +132,46 @@ form.composer input {
   flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg);
   border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
 }
+.mic { font-size: 1.1rem; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; cursor: pointer; color: var(--ink); }
+.mic.listening { background: var(--alert-soft); border-color: var(--alert); }
 button.primary {
-  font: 700 1rem var(--font-body); color: var(--surface); background: var(--teal);
+  font: 800 1rem var(--font-body); color: var(--surface); background: var(--teal);
   border: 0; border-radius: 12px; padding: 10px 18px; cursor: pointer;
 }
-:focus-visible { outline: 3px solid var(--water); outline-offset: 2px; }
 
-/* ---------- My Day panel ---------- */
-aside { display: grid; gap: 14px; min-width: 0; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 10px; }
+/* ---------- Brain view ---------- */
+.brain dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 0.92rem; }
+.brain dt { color: var(--muted); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 3px; }
+.brain dd { margin: 0; overflow-wrap: anywhere; }
+.tag { display: inline-block; background: var(--teal-soft); color: var(--teal); border-radius: 6px; padding: 0 6px; margin: 1px 4px 1px 0; font-weight: 700; font-size: 0.85rem; }
+.tag.fix { background: var(--gold-soft); color: var(--gold); }
+.meter { height: 10px; background: var(--teal-soft); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+.meter > div { height: 100%; background: var(--teal); border-radius: 999px; transition: width 0.4s; }
+
+/* ---------- Dashboard cards ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
 .card h2 { font: 800 1.2rem/1.1 var(--font-display); margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .card h2 small { font: 700 0.85rem var(--font-body); color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.score-row { display: flex; gap: 16px; align-items: center; }
+.ring { width: 112px; height: 112px; flex: none; }
+.ring .track { stroke: var(--teal-soft); }
+.ring .value { stroke: var(--teal); transition: stroke-dashoffset 0.6s; }
+.ring text { fill: var(--ink); font: 800 28px var(--font-display); }
+.ring .sub { fill: var(--muted); font: 700 10px var(--font-body); letter-spacing: 0.08em; }
+.parts { display: grid; gap: 6px; flex: 1; min-width: 0; font-size: 0.9rem; }
+.part { display: grid; grid-template-columns: 5.2em minmax(0, 1fr) 2.6em; gap: 8px; align-items: center; }
+.part span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bar { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; border-radius: 999px; transition: width 0.4s; }
+.xp { display: grid; gap: 4px; font-size: 0.85rem; }
+.xp .bar > div { background: var(--gold); }
 .glasses { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
 .glass {
   aspect-ratio: 3 / 4; max-width: 100%; border: 2px solid var(--water); border-radius: 4px 4px 10px 10px;
-  background: transparent; cursor: pointer; padding: 0; position: relative; overflow: hidden;
+  background: transparent; cursor: pointer; padding: 0;
 }
 .glass.full { background: linear-gradient(to top, var(--water) 75%, var(--water-soft) 75%); }
-.bar { height: 14px; background: var(--move-soft); border-radius: 999px; overflow: hidden; }
-.bar > div { height: 100%; width: 0; background: var(--move); border-radius: 999px; transition: width 0.4s; }
-.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.92rem; max-height: 132px; overflow-y: auto; }
-.log li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding-block: 3px; }
-.log li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 select, .row input {
   font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
@@ -122,372 +181,941 @@ button.ghost {
   font: 700 0.9rem var(--font-body); color: var(--teal); background: transparent;
   border: 1px solid var(--teal); border-radius: 10px; padding: 6px 12px; cursor: pointer;
 }
-.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+button.ghost.danger { color: var(--alert); border-color: var(--alert); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 0.9rem; max-height: 110px; overflow-y: auto; }
+.log li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding-block: 3px; }
+.log li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+.minis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini { border-radius: 12px; padding: 10px; display: grid; gap: 2px; }
+.mini b { font: 800 1.4rem/1.1 var(--font-display); }
+.mini.sleep { background: var(--sleep-soft); color: var(--sleep); }
+.mini.mood { background: var(--teal-soft); color: var(--teal); }
+.mini small { color: var(--ink); opacity: 0.75; font-size: 0.8rem; }
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-dasharray: 4 4; }
+.chart .goal { stroke: var(--move); stroke-dasharray: 6 4; stroke-width: 1.5; }
+.chart .barm { fill: var(--move); }
+.chart .barm.low { fill: var(--move-soft); stroke: var(--move); }
+.chart .lbl { fill: var(--muted); font: 700 11px var(--font-body); }
+.chart .lbl.today { fill: var(--ink); }
+.chart .wtr { fill: var(--water); font: 700 10px var(--font-body); }
+.chart .val { fill: var(--ink); font: 700 10px var(--font-body); }
+.badges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.badge { display: grid; justify-items: center; gap: 2px; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 8px 4px; border-radius: 12px; background: var(--bg); color: var(--muted); }
+.badge .icon { font-size: 1.6rem; filter: grayscale(1); opacity: 0.35; }
+.badge.on { background: var(--gold-soft); color: var(--gold); }
+.badge.on .icon { filter: none; opacity: 1; }
 footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
+
+/* ---------- Workout coach ---------- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(6, 20, 24, 0.6); display: grid; place-items: center; z-index: 20;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.coach-box { background: var(--surface); color: var(--ink); border-radius: 22px; padding: 22px; width: min(460px, 100%); display: grid; gap: 12px; text-align: center; }
+.coach-box h2 { font: 800 1.5rem/1.1 var(--font-display); margin: 0; }
+.big-emoji { font-size: 4rem; line-height: 1; }
+.count { font: 800 4.5rem/1 var(--font-display); color: var(--move); font-variant-numeric: tabular-nums; }
+.count.rest { color: var(--water); }
+.coach-box .bar > div { background: var(--move); }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice { border: 2px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 14px; padding: 14px 8px; cursor: pointer; display: grid; gap: 2px; }
+.choice b { font: 800 1.1rem var(--font-display); }
+.choice:hover { border-color: var(--move); }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); font-weight: 800; border-radius: 14px; padding: 10px 18px; max-width: calc(100% - 32px);
+}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <svg class="robot" viewBox="0 0 64 64" aria-hidden="true">
-      <line x1="32" y1="4" x2="32" y2="13" stroke="currentColor" stroke-width="3"/>
-      <circle cx="32" cy="5" r="4" style="fill: var(--move)"/>
-      <rect x="8" y="13" width="48" height="40" rx="14" fill="none" stroke="currentColor" stroke-width="3.5"/>
-      <rect class="eye" x="20" y="26" width="7" height="9" rx="3.5"/>
-      <rect class="eye" x="37" y="26" width="7" height="9" rx="3.5"/>
-      <path d="M24 42 q8 6 16 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <svg class="robot" id="robot" viewBox="0 0 120 100" role="img" aria-label="FitFlex robot face">
+      <line x1="60" y1="4" x2="60" y2="18" stroke="currentColor" stroke-width="4"/>
+      <circle class="bulb" cx="60" cy="6" r="6"/>
+      <rect class="head" x="8" y="18" width="104" height="76" rx="24"/>
+      <rect class="screen" x="20" y="30" width="80" height="52" rx="14"/>
+      <line class="brow" x1="36" y1="40" x2="50" y2="44"/>
+      <line class="brow" x1="84" y1="40" x2="70" y2="44"/>
+      <g class="eyes">
+        <rect class="eye" x="38" y="45" width="10" height="14" rx="5"/>
+        <rect class="eye" x="72" y="45" width="10" height="14" rx="5"/>
+      </g>
+      <circle class="cheek" cx="32" cy="66" r="4"/>
+      <circle class="cheek" cx="88" cy="66" r="4"/>
+      <path id="mouth" d="M48 66 Q60 75 72 66"/>
     </svg>
-    <div>
+    <div class="title-block">
       <h1>FitFlex <span>AI</span></h1>
       <p class="tagline">Your smart fitness buddy: health tips, water reminders and exercise tracking.</p>
+      <div class="status">
+        <span class="pill" id="moodPill">● Happy</span>
+        <span class="pill gold" id="levelPill">Level 1 · Rookie</span>
+        <span class="pill move" id="streakPill">🔥 0-day streak</span>
+      </div>
     </div>
-    <div class="sdg">SDG 3 · Good Health &amp; Well-being</div>
+    <div class="sdg">SDG 3<br>Good Health &amp; Well-being</div>
   </header>
 
   <main>
-    <section class="chat" aria-label="Chat with FitFlex">
-      <div class="messages" id="messages" aria-live="polite"></div>
-      <div class="chips" id="chips"></div>
-      <form class="composer" id="composer">
-        <input id="userInput" autocomplete="off" placeholder="Type here… e.g. “I ran for 20 minutes”" aria-label="Your message">
-        <button class="primary" type="submit">Send</button>
-      </form>
-    </section>
+    <div class="col">
+      <section class="chat" aria-label="Chat with FitFlex">
+        <div class="toolbar">
+          <button class="tool coach" id="openCoach" type="button">🏋️ Workout Coach</button>
+          <button class="tool" id="voiceBtn" type="button" aria-pressed="false">🔊 Voice</button>
+          <button class="tool" id="brainBtn" type="button" aria-pressed="true">🧠 Brain view</button>
+          <button class="tool" id="moodBtn" type="button">😊 Mood check</button>
+        </div>
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <div class="chips" id="chips"></div>
+        <form class="composer" id="composer">
+          <input id="userInput" autocomplete="off" placeholder="Type here… e.g. “I ran for 20 minutes”" aria-label="Your message">
+          <button class="mic" id="micBtn" type="button" aria-label="Speak your message" hidden>🎤</button>
+          <button class="primary" type="submit">Send</button>
+        </form>
+      </section>
 
-    <aside aria-label="My Day">
+      <section class="card brain" id="brainCard" aria-label="Brain view">
+        <h2>🧠 Brain view <small>how FitFlex understood you</small></h2>
+        <dl id="brainList">
+          <dt>Waiting</dt><dd>Send a message and FitFlex will show each step of its thinking here.</dd>
+        </dl>
+      </section>
+    </div>
+
+    <aside class="col" aria-label="My health dashboard">
       <div class="card">
-        <h2>💧 Water today <small id="waterCount">0 / 8 glasses</small></h2>
+        <h2>Today's Health Score <small id="dateLabel"></small></h2>
+        <div class="score-row">
+          <svg class="ring" viewBox="0 0 112 112" aria-label="Health score">
+            <circle class="track" cx="56" cy="56" r="46" fill="none" stroke-width="11"/>
+            <circle class="value" id="ringValue" cx="56" cy="56" r="46" fill="none" stroke-width="11" stroke-linecap="round"
+              stroke-dasharray="289" stroke-dashoffset="289" transform="rotate(-90 56 56)"/>
+            <text id="scoreText" x="56" y="60" text-anchor="middle">0</text>
+            <text class="sub" x="56" y="77" text-anchor="middle">OUT OF 100</text>
+          </svg>
+          <div class="parts">
+            <div class="part"><span>💧 Water</span><div class="bar"><div id="pWater" style="background: var(--water)"></div></div><span id="sWater">0</span></div>
+            <div class="part"><span>🏃 Move</span><div class="bar"><div id="pMove" style="background: var(--move)"></div></div><span id="sMove">0</span></div>
+            <div class="part"><span>😴 Sleep</span><div class="bar"><div id="pSleep" style="background: var(--sleep)"></div></div><span id="sSleep">0</span></div>
+            <div class="part"><span>😊 Mood</span><div class="bar"><div id="pMood" style="background: var(--teal)"></div></div><span id="sMood">0</span></div>
+          </div>
+        </div>
+        <div class="xp">
+          <div class="row" style="justify-content: space-between"><b id="levelName">Level 1 · Rookie</b><span id="xpText" style="color: var(--muted)">0 / 100 XP</span></div>
+          <div class="bar"><div id="xpBar"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>💧 Water <small id="waterCount">0 / 8 glasses</small></h2>
         <div class="glasses" id="glasses"></div>
-        <p class="hint">Tap a glass when you drink one. Teens need about 6–8 glasses a day, more when it is hot or after sport.</p>
+        <p class="hint">Tap a glass when you drink one. Teens need about 6–8 glasses a day, more in hot weather or after sport.</p>
       </div>
 
       <div class="card">
         <h2>🏃 Active minutes <small id="moveCount">0 / 60 min</small></h2>
-        <div class="bar"><div id="moveBar"></div></div>
+        <div class="bar"><div id="moveBar" style="background: var(--move)"></div></div>
         <div class="row">
           <select id="activity" aria-label="Activity">
             <option>Walking</option><option>Running</option><option>Cycling</option><option>Football</option>
             <option>Cricket</option><option>Skipping</option><option>Dancing</option><option>Badminton</option>
             <option>Swimming</option><option>Yoga / Stretching</option>
           </select>
-          <input id="minutes" type="number" min="1" max="180" value="15" style="width:5em" aria-label="Minutes">
+          <input id="minutes" type="number" min="1" max="180" value="15" style="width: 5em" aria-label="Minutes">
           <button class="ghost" id="addMove" type="button">Add</button>
         </div>
         <ul class="log" id="moveLog"></ul>
+        <div class="minis">
+          <div class="mini sleep"><small>Sleep last night</small><b id="sleepVal">–</b><small>Say “I slept 9 hours”</small></div>
+          <div class="mini mood"><small>Today's mood</small><b id="moodVal">–</b><small>Tap “Mood check”</small></div>
+        </div>
       </div>
 
       <div class="card">
-        <h2>⏰ Water reminder</h2>
-        <div class="row">
-          <label for="every">Remind me every</label>
-          <select id="every">
-            <option value="0">Off</option><option value="1">1 min (demo)</option>
-            <option value="20">20 min</option><option value="30">30 min</option><option value="60">60 min</option>
-          </select>
+        <h2>📈 My week <small>active minutes</small></h2>
+        <svg class="chart" id="chart" viewBox="0 0 320 172" role="img" aria-label="Active minutes for the last 7 days"></svg>
+        <p class="hint">Dashed line = 60-minute goal. Blue numbers = glasses of water.</p>
+      </div>
+
+      <div class="card">
+        <h2>🏅 Badges <small id="badgeCount">0 / 8</small></h2>
+        <div class="badges" id="badges"></div>
+      </div>
+
+      <div class="card">
+        <h2>⏰ Reminders</h2>
+        <div class="row"><label for="waterEvery">💧 Drink water every</label>
+          <select id="waterEvery"><option value="0">Off</option><option value="1">1 min (demo)</option><option value="20">20 min</option><option value="30">30 min</option><option value="60">60 min</option></select>
         </div>
-        <p class="hint">Keep this page open. FitFlex will pop up a message and beep.</p>
-        <button class="ghost" id="resetDay" type="button">Start a new day</button>
+        <div class="row"><label for="moveEvery">🚶 Move break every</label>
+          <select id="moveEvery"><option value="0">Off</option><option value="1">1 min (demo)</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option></select>
+        </div>
+        <p class="hint">Keep this page open. FitFlex pops up a message and beeps.</p>
+        <div class="row">
+          <button class="ghost" id="notifyBtn" type="button">Allow pop-up alerts</button>
+          <button class="ghost" id="demoBtn" type="button">Load demo week</button>
+          <button class="ghost danger" id="resetBtn" type="button">Erase all data</button>
+        </div>
       </div>
     </aside>
   </main>
 
-  <footer>FitFlex AI gives general tips for healthy kids. It is not a doctor. If you feel unwell, tell a parent, teacher or doctor.</footer>
+  <footer>FitFlex AI gives general health tips for young people. It is not a doctor. If you feel unwell, tell a parent, teacher or doctor.</footer>
 </div>
+
+<!-- Workout coach pop-up -->
+<div class="overlay" id="coach" hidden>
+  <div class="coach-box" role="dialog" aria-modal="true" aria-labelledby="coachTitle">
+    <div id="coachStart">
+      <h2 id="coachTitle">🏋️ Workout Coach</h2>
+      <p class="hint" style="margin: 8px 0 14px">FitFlex will time each move and cheer you on. Make some space around you!</p>
+      <div class="choices">
+        <button class="choice" type="button" data-routine="quick"><b>⚡ Quick</b><span>1 minute</span></button>
+        <button class="choice" type="button" data-routine="full"><b>💪 Full</b><span>5 minutes</span></button>
+      </div>
+      <p style="margin: 14px 0 0"><button class="ghost" type="button" id="coachCancel">Close</button></p>
+    </div>
+    <div id="coachRun" hidden style="display: grid; gap: 10px">
+      <small class="hint" id="coachStep">Move 1 of 6</small>
+      <div class="big-emoji" id="coachEmoji">🤸</div>
+      <h2 id="coachName">Jumping jacks</h2>
+      <p class="hint" id="coachHow" style="margin: 0"></p>
+      <div class="count" id="coachCount">30</div>
+      <div class="bar"><div id="coachBar"></div></div>
+      <small class="hint" id="coachNext"></small>
+      <div class="row" style="justify-content: center">
+        <button class="ghost" type="button" id="coachPause">Pause</button>
+        <button class="ghost" type="button" id="coachSkip">Skip</button>
+        <button class="ghost danger" type="button" id="coachStop">Stop</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
 
 <script>
 /* =====================================================================
-   FitFlex AI – how the chatbot works
-   1. The user types a message.
-   2. We clean it up (lowercase, remove punctuation).
-   3. We look for KEYWORDS from the BRAIN list below.
-   4. The topic with the most matching keywords wins and FitFlex replies.
+   FitFlex AI – how the chatbot thinks
+   1. INPUT      The student types or speaks a message.
+   2. CLEAN      Lowercase it and remove punctuation.
+   3. SAFETY     Check for words that mean "get a trusted adult" first.
+   4. COMMANDS   Look for actions with numbers: water, exercise, sleep, meals.
+   5. TOPICS     Score every topic in BRAIN by matching keywords
+                 (also word families like "exercises" and small typos like "excercise").
+   6. REPLY      The best topic wins. FitFlex answers, changes its face and earns XP.
+   The Brain view shows all of these steps live.
    Students: add new topics to BRAIN to make FitFlex smarter!
    ===================================================================== */
 
-// ---------- 1. The "brain": topics, keywords and answers ----------
+// ---------- 1. Knowledge: topics, keywords (English + Roman Urdu) and answers ----------
 const BRAIN = [
-  { topic: "greeting",
-    keywords: ["hi", "hello", "hey", "salam", "assalam", "aoa", "good morning"],
-    answers: ["Hello {name}! 👋 Ready to get healthy today?", "Hi {name}! What shall we do: a tip, an exercise or a quiz?"] },
-  { topic: "how are you",
-    keywords: ["how are you", "how r u"],
-    answers: ["I'm charged to 100%! ⚡ How are you feeling today?"] },
-  { topic: "water",
-    keywords: ["water", "thirsty", "hydrate", "hydration", "drink"],
-    answers: ["Your body is about 60% water! 💧 Try to drink 6–8 glasses a day.\nTip: keep a bottle on your desk. Say \"I drank a glass\" and I'll count it.",
-              "Feeling tired or getting a headache? You might need water. Drink a glass now and tell me!"] },
-  { topic: "exercise",
-    keywords: ["exercise", "workout", "fit", "fitness", "sport", "active", "muscle", "strong", "game", "play"],
-    answers: ["Kids your age need 60 minutes of activity every day. 🏃 It can be football, cycling, skipping or even dancing!\nTell me what you did, like \"I played football for 30 minutes\".",
-              "Try this 5-minute mini workout:\n• 20 jumping jacks\n• 10 squats\n• 10 wall push-ups\n• 20 seconds plank\n• 30 seconds stretching\nTell me when you are done! 💪"] },
-  { topic: "stretch",
-    keywords: ["stretch", "tired of sitting", "back", "neck", "break"],
-    answers: ["Desk stretch break! 🧘\n1. Roll your shoulders 5 times.\n2. Reach up high for 10 seconds.\n3. Turn your head slowly left and right.\n4. Stand up and march on the spot for 30 seconds."] },
-  { topic: "food",
-    keywords: ["food", "eat", "diet", "fruit", "vegetable", "lunch", "breakfast", "dinner", "snack", "healthy food", "junk"],
-    answers: ["Make half your plate fruit and vegetables 🥦🍎, a quarter roti/rice, and a quarter protein like daal, eggs, chicken or beans.",
+  { topic: "Greeting", keywords: ["hi", "hello", "hey", "salam", "assalam", "aoa", "good morning", "good evening"],
+    answers: ["Hello {name}! 👋 Ready to get healthy today?", "Hi {name}! Shall we do a tip, a workout or a quiz?"] },
+  { topic: "How are you", keywords: ["how are you", "how r u", "kaise ho", "kya haal"],
+    answers: ["I'm charged to 100%! ⚡ How are you feeling today? Tap “Mood check” to tell me."] },
+  { topic: "Water", keywords: ["water", "thirsty", "hydrate", "hydration", "drink", "pani", "paani", "pyaas", "bottle"],
+    answers: ["Your body is about 60% water! 💧 Try to drink 6–8 glasses a day.\nSay “I drank a glass” and I'll count it.",
+              "Headache or feeling tired? You might need water. Drink a glass now and tell me!"] },
+  { topic: "Exercise", keywords: ["exercise", "workout", "fitness", "sport", "active", "muscle", "strong", "kasrat", "warzish", "khel"],
+    answers: ["Kids your age need 60 minutes of activity every day. 🏃 Football, cycling, skipping and dancing all count!\nTap “Workout Coach” and I'll train you.",
+              "Want a stronger body? Mix it up: running for your heart, push-ups for muscles, stretching to stay flexible. Try the Workout Coach! 💪"] },
+  { topic: "Stretch", keywords: ["stretch", "sitting", "posture", "neck", "break", "stiff"],
+    answers: ["Desk stretch break! 🧘\n1. Roll your shoulders 5 times.\n2. Reach up high for 10 seconds.\n3. Turn your head slowly left and right.\n4. March on the spot for 30 seconds."] },
+  { topic: "Food", keywords: ["food", "eat", "fruit", "vegetable", "lunch", "breakfast", "dinner", "snack", "healthy", "junk", "khana", "nashta", "phal", "sabzi"],
+    answers: ["Make half your plate fruit and vegetables 🥦🍎, a quarter roti or rice, and a quarter protein like daal, eggs, chicken or beans.\nTell me what you ate and I'll check your meal!",
               "Never skip breakfast! It gives your brain energy for school. Try an egg with roti, or oats with banana. 🍳",
-              "Swap fizzy drinks for water or lassi, and chips for fruit or roasted chana. Your body will thank you! 🍌"] },
-  { topic: "sugar",
-    keywords: ["sugar", "sweet", "candy", "chocolate", "soda", "cold drink", "fizzy"],
-    answers: ["Sweets are fine sometimes, but too much sugar harms teeth and gives you an energy crash. 🍬 One can of soda has about 8 spoons of sugar!"] },
-  { topic: "sleep",
-    keywords: ["sleep", "tired", "bed", "night", "rest", "sleepy"],
-    answers: ["Teens need about 9 hours of sleep. 😴 Put screens away 30 minutes before bed and try to sleep at the same time every night."] },
-  { topic: "screen",
-    keywords: ["screen", "phone", "mobile", "video game", "gaming", "tv", "tablet"],
-    answers: ["Follow the 20-20-20 rule 👀: every 20 minutes, look at something 20 feet away for 20 seconds. And try to swap one hour of screen time for outdoor play!"] },
-  { topic: "hygiene",
-    keywords: ["wash", "hands", "germs", "brush", "teeth", "clean", "bath"],
-    answers: ["Wash your hands with soap for 20 seconds 🧼 (as long as singing \"Happy Birthday\" twice), especially before eating. Brush your teeth twice a day!"] },
-  { topic: "stress",
-    keywords: ["stress", "worried", "nervous", "exam", "angry", "calm", "relax", "test"],
-    answers: ["Try box breathing 🌬️: breathe in for 4, hold for 4, out for 4, hold for 4. Repeat 4 times. Moving your body and good sleep also help a lot.\nIf worries won't go away, talk to someone you trust."] },
-  { topic: "about",
-    keywords: ["who are you", "what are you", "your name", "what can you do", "help"],
-    answers: ["I'm FitFlex AI 🤖, a smart fitness buddy built for SDG 3: Good Health and Well-being.\nI can:\n• give health tips (type \"tip\")\n• count your water (\"I drank a glass\")\n• track exercise (\"I ran for 20 minutes\")\n• remind you to drink water\n• quiz you (type \"quiz\")\n• show your progress (\"progress\")"] },
-  { topic: "thanks",
-    keywords: ["thanks", "thank you", "shukriya", "great", "awesome", "cool"],
+              "Swap fizzy drinks for water or lassi, and chips for fruit or roasted chana. 🍌"] },
+  { topic: "Sugar", keywords: ["sugar", "sweet", "candy", "chocolate", "soda", "cold drink", "fizzy", "meetha", "mithai"],
+    answers: ["Sweets are fine sometimes, but too much sugar harms teeth and gives you an energy crash. 🍬 One can of soda has about 8 teaspoons of sugar!"] },
+  { topic: "Sleep", keywords: ["sleep", "tired", "bed", "night", "sleepy", "neend", "sona", "thakan", "thaka"],
+    answers: ["Teens need about 8–10 hours of sleep. 😴 Put screens away 30 minutes before bed and sleep at the same time every night.\nTell me “I slept 8 hours” to track it."] },
+  { topic: "Screens", keywords: ["screen", "phone", "mobile", "video game", "gaming", "tv", "tablet", "youtube"],
+    answers: ["Follow the 20-20-20 rule 👀: every 20 minutes, look at something 20 feet away for 20 seconds. Try swapping one hour of screen time for outdoor play!"] },
+  { topic: "Hygiene", keywords: ["wash", "hands", "germs", "brush", "teeth", "clean", "bath", "haath", "daant"],
+    answers: ["Wash your hands with soap for 20 seconds 🧼 (sing “Happy Birthday” twice), especially before eating. Brush your teeth twice a day!"] },
+  { topic: "Stress", keywords: ["stress", "worried", "nervous", "exam", "angry", "calm", "relax", "pareshan", "tension", "darr"],
+    answers: ["Try box breathing 🌬️: in for 4, hold for 4, out for 4, hold for 4. Repeat 4 times. Exercise and good sleep also calm your mind.\nIf worries won't go away, talk to someone you trust."] },
+  { topic: "Body image", keywords: ["weight", "fat", "skinny", "diet", "thin", "mota", "patla"],
+    answers: ["Healthy bodies come in all shapes and sizes, and your body is still growing. 💙 Focus on habits, not the scale: eat a balanced plate, move every day and sleep well. Never start a diet without talking to a parent or doctor."] },
+  { topic: "About FitFlex", keywords: ["who are you", "what are you", "your name", "what can you do", "help", "features"],
+    answers: ["I'm FitFlex AI 🤖, a smart fitness buddy built for SDG 3: Good Health and Well-being.\nI can:\n• give health tips (“tip”)\n• count water (“I drank 2 glasses”)\n• track exercise (“I ran for 20 minutes”)\n• check your meal (“I ate roti and daal”)\n• track sleep and mood\n• coach a workout, quiz you and give badges\n• understand some Roman Urdu (“maine 2 glass pani piya”)"] },
+  { topic: "Thanks", keywords: ["thanks", "thank you", "shukriya", "great", "awesome", "cool", "nice"],
     answers: ["You're welcome, {name}! Keep it up! 🌟", "Anytime! Healthy habits are superpowers. 💪"] },
-  { topic: "bye",
-    keywords: ["bye", "goodbye", "see you", "allah hafiz", "khuda hafiz"],
+  { topic: "Goodbye", keywords: ["bye", "goodbye", "see you", "allah hafiz", "khuda hafiz"],
     answers: ["Bye {name}! Remember: drink water and move your body! 👋"] }
 ];
 
 const TIPS = [
   "Take the stairs instead of the lift. 🪜",
-  "Eat a rainbow: try fruits and vegetables of 3 different colours today. 🌈",
+  "Eat a rainbow: fruits and vegetables of 3 different colours today. 🌈",
   "Stand up and move for 2 minutes every half hour.",
   "Fill a water bottle in the morning and finish it before school ends. 💧",
-  "Play outside for at least 30 minutes. Sunlight helps your body make vitamin D. ☀️",
-  "Chew slowly. It helps your stomach and you notice when you are full.",
+  "Play outside for 30 minutes. Sunlight helps your body make vitamin D. ☀️",
+  "Chew slowly. You'll notice when you are full.",
   "Laughing is good for your heart! Tell a friend a joke today. 😄",
-  "Walk or cycle to a nearby shop instead of going by car (with a grown-up's OK)."
+  "Carry a fruit in your school bag instead of chips. 🍎",
+  "Sit up straight: ears over shoulders, feet flat on the floor.",
+  "Make your bed and open the curtains first thing. Morning light helps you wake up."
 ];
 
 const QUIZ = [
-  { q: "How many minutes of activity do kids need each day?", options: ["A) 10 minutes", "B) 60 minutes", "C) 3 hours"], answer: "b",
-    why: "60 minutes a day keeps your heart, bones and muscles strong." },
-  { q: "Which drink is the best choice when you're thirsty?", options: ["A) Cold drink", "B) Energy drink", "C) Water"], answer: "c",
-    why: "Water has no sugar and keeps your body cool." },
-  { q: "How long should you wash your hands?", options: ["A) 20 seconds", "B) 2 seconds", "C) 5 minutes"], answer: "a",
-    why: "20 seconds with soap removes most germs." },
-  { q: "About how many hours should a teenager sleep?", options: ["A) 5 hours", "B) 9 hours", "C) 14 hours"], answer: "b",
-    why: "Around 8–10 hours helps you grow, learn and stay in a good mood." },
-  { q: "What should fill half of your plate?", options: ["A) Fruit and vegetables", "B) Rice", "C) Sweets"], answer: "a",
-    why: "Fruit and vegetables give vitamins and fibre." }
+  { q: "How many minutes of activity do kids need each day?", o: ["10 minutes", "60 minutes", "3 hours"], a: "b", why: "60 minutes a day keeps your heart, bones and muscles strong." },
+  { q: "Which drink is best when you're thirsty?", o: ["Cold drink", "Energy drink", "Water"], a: "c", why: "Water has no sugar and keeps your body cool." },
+  { q: "How long should you wash your hands?", o: ["20 seconds", "2 seconds", "5 minutes"], a: "a", why: "20 seconds with soap removes most germs." },
+  { q: "About how many hours should a teenager sleep?", o: ["5 hours", "8–10 hours", "14 hours"], a: "b", why: "8–10 hours helps you grow, learn and stay in a good mood." },
+  { q: "What should fill half of your plate?", o: ["Fruit and vegetables", "Rice", "Sweets"], a: "a", why: "Fruit and vegetables give vitamins and fibre." },
+  { q: "Which food has the most protein?", o: ["Chips", "Daal", "Biscuits"], a: "b", why: "Daal, eggs, beans and chicken build strong muscles." },
+  { q: "The 20-20-20 rule protects your…", o: ["Eyes", "Knees", "Teeth"], a: "a", why: "Looking far away every 20 minutes rests your eyes." },
+  { q: "How much of your body is water?", o: ["About 10%", "About 60%", "About 95%"], a: "b", why: "That's why drinking water through the day matters." },
+  { q: "Which is a good way to calm exam stress?", o: ["Skip sleep", "Box breathing", "Drink 3 sodas"], a: "b", why: "Slow breathing calms your heart and mind." },
+  { q: "How many teaspoons of sugar are in one can of soda?", o: ["About 1", "About 8", "None"], a: "b", why: "That's more sugar than a child should have in a whole day." }
 ];
 
-// Words that mean the student may need a real adult, not a chatbot.
-const SAFETY_WORDS = ["hurt", "pain ", "painful", "injur", "bleed", "dizzy", "faint", "chest", "can't breathe", "cant breathe",
-  "sick", "vomit", "fever", "depress", "sad ", "lonely", "bully", "bullied", "kill", "self harm", "starv", "not eating", "lose weight"];
+// Words that mean the student needs a real adult, not a chatbot (English + Roman Urdu).
+const SAFETY_WORDS = ["hurt", "pain ", "painful", "injur", "bleed", "dizzy", "faint", "chest pain", "can't breathe", "cant breathe",
+  "sick", "vomit", "fever", "depress", "sad ", "lonely", "bully", "bullied", "kill", "self harm", "starv", "not eating",
+  "dard", "chot", "bimar", "bukhar", "udaas", "akela"];
 
-// ---------- 2. Saving today's data in the browser ----------
-const today = new Date().toDateString();
-let state = { day: today, name: "", water: 0, moves: [] };
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem("fitflex") || "null");
-    if (saved && saved.day === today) state = saved;
-    else if (saved) state.name = saved.name || ""; // new day: keep the name, reset counts
-  } catch (e) { /* storage blocked: just start fresh */ }
-}
-function save() { try { localStorage.setItem("fitflex", JSON.stringify(state)); } catch (e) {} }
+// Meal checker: food words and their food group.
+const FOODS = {
+  fruitveg: ["apple", "banana", "orange", "mango", "fruit", "salad", "vegetable", "vegetables", "sabzi", "carrot", "cucumber", "spinach", "palak", "guava", "dates", "grapes", "watermelon", "kheera", "tomato"],
+  protein: ["egg", "eggs", "anda", "anday", "daal", "dal", "chicken", "fish", "beans", "chana", "chickpeas", "milk", "doodh", "yogurt", "dahi", "lassi", "paneer", "meat", "nuts", "lentils"],
+  grain: ["roti", "chapati", "rice", "chawal", "oats", "bread", "paratha", "naan", "cereal"],
+  treat: ["chips", "soda", "cola", "coke", "pepsi", "cold drink", "burger", "pizza", "fries", "samosa", "pakora", "pakoray", "candy", "chocolate", "cake", "biscuit", "biscuits", "ice cream", "noodles", "nimko", "jalebi", "mithai", "donut", "sweets"]
+};
 
-// ---------- 3. Chat helpers ----------
+const ACTIVITIES = { run: "Running", " ran ": "Running", jog: "Running", daud: "Running", walk: "Walking", chal: "Walking", sair: "Walking",
+  cycl: "Cycling", bike: "Cycling", football: "Football", soccer: "Football", cricket: "Cricket", skip: "Skipping", rope: "Skipping",
+  danc: "Dancing", badminton: "Badminton", swim: "Swimming", tair: "Swimming", yoga: "Yoga / Stretching", stretch: "Yoga / Stretching",
+  basketball: "Basketball", hockey: "Hockey", workout: "Workout", exercis: "Workout", kasrat: "Workout", play: "Playing", khel: "Playing" };
+
+const BADGES = [
+  { id: "sip", icon: "💧", name: "First Sip", how: "Log your first glass" },
+  { id: "hydro", icon: "🌊", name: "Hydro Hero", how: "8 glasses in a day" },
+  { id: "champ", icon: "🏆", name: "60-Min Champ", how: "60 active minutes in a day" },
+  { id: "coach", icon: "🏋️", name: "Workout Warrior", how: "Finish a coach workout" },
+  { id: "quiz", icon: "🧠", name: "Quiz Whiz", how: "5 correct quiz answers" },
+  { id: "sleep", icon: "🌙", name: "Sleep Star", how: "Sleep 8+ hours" },
+  { id: "chef", icon: "🥗", name: "Smart Plate", how: "Get a 5-star meal" },
+  { id: "streak", icon: "🔥", name: "3-Day Streak", how: "Be active 3 days in a row" }
+];
+const LEVELS = ["Rookie", "Mover", "Athlete", "Champion", "Legend", "Superhero"];
+
+const ROUTINES = {
+  quick: [
+    { name: "Jumping jacks", emoji: "🤸", secs: 20, how: "Jump, open your arms and legs, then close." },
+    { name: "Rest", emoji: "😮‍💨", secs: 5, rest: true, how: "Breathe in through your nose." },
+    { name: "High knees", emoji: "🏃", secs: 20, how: "Run on the spot, knees up high!" },
+    { name: "Rest", emoji: "😮‍💨", secs: 5, rest: true, how: "Shake out your arms." },
+    { name: "Big stretch", emoji: "🙆", secs: 10, how: "Reach to the sky, then touch your toes." }
+  ],
+  full: [
+    { name: "Warm-up march", emoji: "🚶", secs: 30, how: "March on the spot and swing your arms." },
+    { name: "Jumping jacks", emoji: "🤸", secs: 30, how: "Jump, open your arms and legs, then close." },
+    { name: "Rest", emoji: "😮‍💨", secs: 10, rest: true, how: "Breathe slowly. Sip water." },
+    { name: "Squats", emoji: "🦵", secs: 30, how: "Feet apart, sit back like on a chair, stand up." },
+    { name: "Rest", emoji: "😮‍💨", secs: 10, rest: true, how: "Shake out your legs." },
+    { name: "High knees", emoji: "🏃", secs: 30, how: "Run on the spot, knees up high!" },
+    { name: "Rest", emoji: "😮‍💨", secs: 10, rest: true, how: "Breathe in for 4, out for 4." },
+    { name: "Wall push-ups", emoji: "💪", secs: 30, how: "Hands on a wall, bend your arms, push back." },
+    { name: "Rest", emoji: "😮‍💨", secs: 10, rest: true, how: "Roll your shoulders." },
+    { name: "Plank", emoji: "🧱", secs: 20, how: "On your forearms, body straight like a plank." },
+    { name: "Star jumps", emoji: "⭐", secs: 30, how: "Jump and spread out like a star!" },
+    { name: "Cool-down stretch", emoji: "🧘", secs: 40, how: "Stretch your arms, legs and back slowly." }
+  ]
+};
+
+// ---------- 2. Memory: saved in this browser only ----------
+const KEY = "fitflex-v2";
+const dayKey = (d = new Date()) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const EMPTY_DAY = () => ({ water: 0, moves: [], sleep: null, mood: null });
+let data = { profile: { name: "", xp: 0, badges: [], quizRight: 0, voice: false }, days: {} };
+try { const saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved && saved.profile) data = saved; } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} };
+const today = () => (data.days[dayKey()] = data.days[dayKey()] || EMPTY_DAY());
+const P = data.profile;
+
+// ---------- 3. Small helpers ----------
 const $ = (id) => document.getElementById(id);
-const messagesBox = $("messages");
-let quizIndex = -1;          // which quiz question is waiting for an answer (-1 = none)
-let waitingFor = null;       // "name" or "minutes" when FitFlex asked a question
-let pendingActivity = "";
-
-function addMessage(text, who, extraClass) {
-  const div = document.createElement("div");
-  div.className = "msg " + who + (extraClass ? " " + extraClass : "");
-  div.textContent = text;
-  messagesBox.appendChild(div);
-  messagesBox.scrollTop = messagesBox.scrollHeight;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const clean = (t) => " " + t.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim() + " ";
+const minutesToday = (d = today()) => d.moves.reduce((s, m) => s + m.minutes, 0);
+const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ek: 1, teen: 3, char: 4, paanch: 5, das: 10, bees: 20 };
+function firstNumber(text) {
+  const m = text.match(/\b(\d{1,3})\b/);
+  if (m) return +m[1];
+  for (const w of text.trim().split(" ")) if (NUMBER_WORDS[w]) return NUMBER_WORDS[w];
+  return null;
 }
-function botSay(text, extraClass) {
+function minutesFrom(text) {
+  if (/\bhalf (an )?hour\b|\badha ghanta\b/.test(text)) return 30;
+  if (/\b(an|one|ek) (hour|ghanta)\b/.test(text)) return 60;
+  const n = firstNumber(text);
+  if (n == null) return null;
+  return /\b(hours?|hrs?|ghante|ghanta)\b/.test(text) && n <= 4 ? n * 60 : n;
+}
+// Edit distance: how many letters must change to turn one word into another (used to fix typos).
+function editDistance(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+
+// ---------- 4. Robot face, voice and sounds ----------
+const robot = $("robot");
+const MOUTHS = { happy: "M48 66 Q60 75 72 66", think: "M51 69 L69 69", worried: "M49 71 Q60 64 71 71", party: "M46 63 Q60 82 74 63 Z" };
+const MOOD_LABELS = { happy: "● Happy", think: "● Thinking…", worried: "● Concerned", party: "● Celebrating!" };
+function setMood(m) {
+  robot.classList.remove("mood-happy", "mood-think", "mood-worried", "mood-party");
+  robot.classList.add("mood-" + m);
+  $("mouth").setAttribute("d", MOUTHS[m]);
+  $("moodPill").textContent = MOOD_LABELS[m];
+}
+function speak(text) {
+  if (!P.voice || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}•]/gu, ""));
+    u.rate = 1.05; u.pitch = 1.3;
+    u.onstart = () => robot.classList.add("talking");
+    u.onend = u.onerror = () => robot.classList.remove("talking");
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+let audio = null;
+function beep(freq = 880, len = 0.18) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audio.createOscillator(), gain = audio.createGain();
+    osc.frequency.value = freq; gain.gain.value = 0.15;
+    osc.connect(gain); gain.connect(audio.destination);
+    osc.start(); osc.stop(audio.currentTime + len);
+  } catch (e) {}
+}
+let toastTimer;
+function toast(text) {
+  const t = $("toast"); t.textContent = text; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3200);
+}
+
+// ---------- 5. Chat ----------
+const box = $("messages");
+let waitingFor = null, pendingActivity = "", quizItem = null;
+
+function addMessage(text, who, cls) {
+  const div = document.createElement("div");
+  div.className = "msg " + who + (cls ? " " + cls : "");
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function botSay(text, opts = {}) {
+  text = text.replaceAll("{name}", P.name || "friend");
+  setMood("think");
   const typing = document.createElement("div");
-  typing.className = "typing"; typing.textContent = "FitFlex is typing…";
-  messagesBox.appendChild(typing);
-  messagesBox.scrollTop = messagesBox.scrollHeight;
-  setTimeout(() => { typing.remove(); addMessage(text.replaceAll("{name}", state.name || "friend"), "bot", extraClass); }, 450);
+  typing.className = "typing"; typing.textContent = "FitFlex is thinking…";
+  box.appendChild(typing); box.scrollTop = box.scrollHeight;
+  setTimeout(() => {
+    typing.remove();
+    addMessage(text, "bot", opts.cls);
+    setMood(opts.mood || "happy");
+    speak(text);
+  }, opts.fast ? 150 : 550);
 }
 function setChips(list) {
-  const box = $("chips"); box.innerHTML = "";
+  const c = $("chips"); c.innerHTML = "";
   list.forEach((label) => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "chip"; b.textContent = label;
     b.onclick = () => handleUser(label);
-    box.appendChild(b);
+    c.appendChild(b);
   });
 }
-const DEFAULT_CHIPS = ["💡 Tip", "💧 I drank a glass", "🏋️ Give me a workout", "❓ Quiz", "📊 Progress"];
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const clean = (t) => " " + t.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim() + " ";
+const DEFAULT_CHIPS = ["💡 Tip", "💧 I drank a glass", "🍽️ I ate roti and daal", "❓ Quiz", "📊 Progress"];
 
-// ---------- 4. Understanding the message ----------
-const ACTIVITIES = { run: "Running", " ran ": "Running", jog: "Running", walk: "Walking", cycl: "Cycling", bike: "Cycling", football: "Football",
-  soccer: "Football", cricket: "Cricket", skip: "Skipping", jump: "Skipping", danc: "Dancing", badminton: "Badminton",
-  swim: "Swimming", yoga: "Yoga / Stretching", stretch: "Yoga / Stretching", basketball: "Basketball", workout: "Workout", exercis: "Workout", play: "Playing" };
+// ---------- 6. Brain view: show the thinking steps ----------
+function showThinking(t) {
+  const rows = [
+    ["You said", document.createTextNode("“" + t.said + "”")],
+    ["Cleaned words", tags(t.words)],
+    ["Understood as", strong(t.intent)],
+    ["Clues found", t.clues.length ? tags(t.clues) : document.createTextNode("none")],
+    ["Confidence", confidence(t.confidence)],
+    ["Action", document.createTextNode(t.action)]
+  ];
+  const dl = $("brainList"); dl.innerHTML = "";
+  rows.forEach(([k, v]) => { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.appendChild(v); dl.append(dt, dd); });
+}
+function tags(list) {
+  const f = document.createDocumentFragment();
+  list.forEach((w) => { const s = document.createElement("span"); s.className = "tag" + (String(w).includes("→") ? " fix" : ""); s.textContent = w; f.appendChild(s); });
+  return f;
+}
+function strong(text) { const b = document.createElement("b"); b.textContent = text; return b; }
+function confidence(pct) {
+  const d = document.createElement("div");
+  d.innerHTML = "<span></span><div class=\"meter\"><div></div></div>";
+  d.firstChild.textContent = pct + "%";
+  d.lastChild.firstChild.style.width = pct + "%";
+  return d;
+}
 
+// ---------- 7. Understanding a message ----------
+function matchKeyword(k, text, words) {
+  if (k.includes(" ")) return text.includes(" " + k + " ") ? { clue: k, weight: 1 } : null;
+  for (const w of words) {
+    if (w === k) return { clue: k, weight: 1 };
+    if (k.length >= 4 && w.startsWith(k)) return { clue: w, weight: 1 };                          // word family: exercises → exercise
+    if (k.length >= 5 && w.length >= 5 && editDistance(w, k) === 1) return { clue: w + " → " + k, weight: 0.8 }; // typo fix
+  }
+  return null;
+}
+function scoreTopics(text, words) {
+  return BRAIN.map((item) => {
+    const hits = item.keywords.map((k) => matchKeyword(k, text, words)).filter(Boolean);
+    return { item, hits, score: hits.reduce((s, h) => s + h.weight, 0) };
+  }).sort((a, b) => b.score - a.score);
+}
+function findFoods(text) {
+  const found = [];
+  for (const group in FOODS) FOODS[group].forEach((f) => { if (text.includes(" " + f + " ")) found.push({ f, group }); });
+  return found;
+}
 function findActivity(text) {
-  for (const key in ACTIVITIES) if (text.includes(key)) return ACTIVITIES[key];
-  return "";
+  for (const key in ACTIVITIES) if (text.includes(key)) return { key: key.trim(), name: ACTIVITIES[key] };
+  return null;
 }
 
 function reply(raw) {
   const text = clean(raw);
-  const number = (text.match(/\b(\d{1,3})\b/) || [])[1];
+  const words = text.trim().split(" ").filter(Boolean);
+  const think = (intent, clues, action, conf = 100) => showThinking({ said: raw, words, intent, clues, action, confidence: conf });
 
-  // a) Safety first: send serious problems to a trusted adult.
-  if (SAFETY_WORDS.some((w) => text.includes(" " + w))) {
-    botSay("That sounds important, {name}. 💙 I'm only a robot, so please talk to a parent, teacher or school nurse about this today. If someone is in danger, get an adult right away.", "safety");
+  // a) Safety first.
+  const danger = SAFETY_WORDS.filter((w) => text.includes(" " + w));
+  if (danger.length) {
+    think("⚠️ Safety alert", danger.map((d) => d.trim()), "Tell the student to get help from a trusted adult. No medical advice.");
+    botSay("That sounds important, {name}. 💙 I'm only a robot, so please talk to a parent, teacher or school nurse about this today. If someone is in danger, get an adult right away.", { cls: "safety", mood: "worried" });
     return;
   }
 
-  // b) Is FitFlex waiting for an answer?
+  // b) Answers to a question FitFlex asked.
   if (waitingFor === "name") {
-    if (/^ (hi|hello|hey|salam|assalam|aoa|assalam o alaikum) $/.test(text)) { botSay("Hello! 👋 What's your name?"); return; }
-    const name = raw.replace(/my name is|call me|i am|i'm/i, "").trim().split(/\s+/)[0] || "friend";
-    state.name = name.charAt(0).toUpperCase() + name.slice(1); save(); waitingFor = null;
-    botSay("Nice to meet you, {name}! 🤖 I can give tips, count your water, track exercise and quiz you. What would you like?");
+    if (/^ (hi|hello|hey|salam|assalam|aoa|assalam o alaikum) $/.test(text)) { think("Greeting", [text.trim()], "Still need a name, ask again"); botSay("Hello! 👋 What's your name?"); return; }
+    const name = raw.replace(/\b(my name is|call me|i am|i'm|mera naam|hai)\b/gi, "").replace(/[^\p{L} ]/gu, "").trim().split(/\s+/)[0] || "friend";
+    P.name = name.charAt(0).toUpperCase() + name.slice(1); save(); waitingFor = null;
+    think("Name", [P.name], "Remember the name in memory");
+    botSay("Nice to meet you, {name}! 🤖 I'm your fitness buddy. I can give tips, count water, track exercise, sleep and meals, coach workouts and quiz you. What first?", { mood: "party" });
     setChips(DEFAULT_CHIPS);
     return;
   }
-  if (waitingFor === "minutes" && number) { waitingFor = null; logMove(pendingActivity, +number); return; }
-  if (quizIndex >= 0 && /^ [abc] $/.test(text)) { checkQuiz(text.trim()); return; }
+  if (waitingFor === "minutes" && firstNumber(text) != null) { waitingFor = null; think("Exercise minutes", [String(minutesFrom(text))], "Log " + pendingActivity); logMove(pendingActivity, minutesFrom(text)); return; }
+  if (waitingFor === "mood") { waitingFor = null; if (setTodayMood(text, raw)) return; }
+  if (quizItem && /^ [abc] $/.test(text)) { checkQuiz(text.trim()); return; }
 
-  // c) Commands
-  if (/my name is|call me/.test(text)) { waitingFor = "name"; reply(raw); return; }
-  if (/\b(drank|drink|had|finished)\b.*\b(water|glass|glasses|bottle)\b/.test(text)) {
-    const glasses = /(glass|glasses|cup)/.test(text) && number ? Math.min(+number, 8) : 1;
+  // c) Actions with numbers.
+  if (/my name is|call me|mera naam/.test(text)) { waitingFor = "name"; reply(raw); return; }
+
+  const isQuestion = /\b(how|should|what|why|much|many|need|kitna|kitne|kya)\b/.test(text);
+  if (!isQuestion && /\b(drank|had|finished|piya|pi|pee|piye)\b/.test(text) && /\b(water|glass|glasses|bottle|bottles|pani|paani|cup|cups|glas)\b/.test(text)) {
+    const n = firstNumber(text), bottle = /\bbottles?\b/.test(text);
+    const glasses = Math.min(8, (n || 1) * (bottle ? 2 : 1));   // 1 bottle = about 2 glasses
+    think("Log water", ["drank", glasses + " glass" + (glasses > 1 ? "es" : "")], "Add " + glasses + " to the water counter, +" + glasses * 5 + " XP");
     addWater(glasses);
-    botSay(state.water >= 8 ? "🎉 Goal reached: " + state.water + " glasses! Super hydrated, {name}!" : "Great! 💧 That's " + state.water + " of 8 glasses today. Keep sipping!");
+    const w = today().water;
+    botSay(w >= 8 ? "🎉 " + w + " glasses! You're super hydrated, {name}!" : "Great! 💧 That's " + w + " of 8 glasses today. " + (8 - w) + " to go!", { mood: w >= 8 ? "party" : "happy" });
     return;
   }
-  const activity = findActivity(text);
-  const didIt = /\b(did|went|played|done|finished|ran|walked|cycled|swam|danced|skipped|jogged|practi[cs]ed|min|mins|minutes|hour|hours)\b/;
-  if (activity && didIt.test(text) && !/\b(give|show|suggest|what|how)\b/.test(text)) {
-    if (number) logMove(activity, /\bhours?\b/.test(text) && +number <= 3 ? +number * 60 : +number);
-    else { waitingFor = "minutes"; pendingActivity = activity; botSay("Awesome! How many minutes of " + activity.toLowerCase() + " did you do?"); setChips(["10", "20", "30", "45"]); }
-    return;
-  }
-  if (/\b(remind|reminder)\b/.test(text)) {
-    const mins = number ? +number : 30;
-    setReminder(mins); $("every").value = [1, 20, 30, 60].includes(mins) ? String(mins) : $("every").value;
-    botSay("⏰ OK! I'll remind you to drink water every " + mins + " minute" + (mins === 1 ? "" : "s") + ". Keep this page open.");
-    return;
-  }
-  if (/\b(tip|advice|idea)\b/.test(text)) { botSay("💡 Tip: " + pick(TIPS)); return; }
-  if (/\b(quiz|question|test me)\b/.test(text)) { askQuiz(); return; }
-  if (/\b(progress|score|how am i doing|stats)\b/.test(text)) { botSay(progressReport()); return; }
 
-  // d) Keyword matching: the topic with the most keyword hits wins.
-  let best = null, bestScore = 0;
-  BRAIN.forEach((item) => {
-    const score = item.keywords.filter((k) => text.includes(" " + k + " ") || (k.length > 4 && text.includes(k))).length;
-    if (score > bestScore) { best = item; bestScore = score; }
-  });
-  if (best) { botSay(pick(best.answers)); return; }
+  if (!isQuestion && /\b(slept|sleep|soya|soyi|soye)\b/.test(text) && /\b(hours?|hrs?|ghante|ghanta)\b/.test(text) && firstNumber(text) != null) {
+    const h = Math.min(firstNumber(text), 16);
+    today().sleep = h; addXP(5); save(); renderAll();
+    think("Log sleep", [h + " hours"], "Save sleep, update Health Score");
+    const msg = h >= 8 && h <= 10 ? "🌙 " + h + " hours: perfect! Your brain and body got time to recharge." :
+      h < 8 ? "😴 " + h + " hours is a bit short. Teens need 8–10. Try going to bed 30 minutes earlier tonight." :
+      "🛌 " + h + " hours is a lot! If you still feel tired, tell a parent.";
+    botSay(msg, { mood: h >= 8 && h <= 10 ? "party" : "happy" });
+    checkBadges();
+    return;
+  }
 
-  // e) Nothing matched.
-  botSay("Hmm, I'm still learning that one! 🤔 Try asking about water, exercise, food, sleep, screens or stress, or type \"help\".");
+  const act = findActivity(text);
+  const didIt = /\b(did|went|played|done|finished|ran|walked|cycled|swam|danced|skipped|jogged|practi[cs]ed|min|mins|minutes|minute|hour|hours|kiya|ki|khela|khele|ghanta|ghante)\b/;
+  if (act && didIt.test(text) && !/\b(give|show|suggest|what|how|should|can|start|coach)\b/.test(text)) {
+    const mins = minutesFrom(text);
+    if (mins) { think("Log exercise", [act.key, mins + " min"], "Add " + mins + " min of " + act.name); logMove(act.name, mins); }
+    else { think("Log exercise", [act.key, "no minutes"], "Ask how many minutes"); waitingFor = "minutes"; pendingActivity = act.name; botSay("Awesome! How many minutes of " + act.name.toLowerCase() + " did you do?"); setChips(["10", "20", "30", "45"]); }
+    return;
+  }
+
+  const foods = findFoods(text);
+  if (foods.length && /\b(ate|eaten|had|eat|khaya|khayi|khaye|lunch|breakfast|dinner|nashta|meal)\b/.test(text) && !/\b(should|what|can|is|are)\b/.test(text)) {
+    mealCheck(foods); return;
+  }
+
+  // d) Commands.
+  const cmd = (re, intent, fn) => { const m = text.match(re); if (m) { fn(m[0].trim(), intent); return true; } return false; };
+  if (cmd(/\b(remind|reminder)\b/, "Set reminder", (c, i) => {
+    const mins = firstNumber(text) || 30, kind = /\b(move|walk|stand|break)\b/.test(text) ? "move" : "water";
+    think(i, [c, kind, mins + " min"], "Start a " + kind + " timer");
+    setReminder(kind, mins);
+    const sel = $(kind === "move" ? "moveEvery" : "waterEvery");
+    if ([...sel.options].some((o) => +o.value === mins)) sel.value = String(mins);
+    botSay("⏰ Done! I'll remind you to " + (kind === "move" ? "get up and move" : "drink water") + " every " + mins + " minute" + (mins === 1 ? "" : "s") + ".");
+  })) return;
+  if (cmd(/\b(workout|coach|train me|exercise with me)\b/, "Workout coach", (c, i) => {
+    if (/\b(start|coach|give|lets|let's|train|with me|begin|do)\b/.test(text)) { think(i, [c], "Open the Workout Coach"); botSay("Let's go! 🏋️ Pick Quick or Full.", { fast: true }); openCoach(); }
+    else { const s = scoreTopics(text, words); think("Exercise", [c], "Answer from knowledge"); botSay(pick(s[0].item.answers)); }
+  })) return;
+  if (cmd(/\b(tip|advice|idea)\b/, "Health tip", (c, i) => { think(i, [c], "Pick a random tip, +2 XP"); addXP(2); botSay("💡 Tip: " + pick(TIPS)); })) return;
+  if (cmd(/\b(quiz|test me|question)\b/, "Quiz", (c, i) => { think(i, [c], "Ask a random quiz question"); askQuiz(); })) return;
+  if (cmd(/\b(progress|score|stats|report|how am i doing)\b/, "Progress report", (c, i) => { think(i, [c], "Read today's data"); botSay(progressReport()); })) return;
+  if (cmd(/\b(badges?|level|xp|points|achievements?)\b/, "Badges", (c, i) => { think(i, [c], "Show level and badges"); botSay(badgeReport()); })) return;
+  if (cmd(/\b(mood|feeling|feel)\b/, "Mood check", (c, i) => { think(i, [c], "Ask how the student feels"); askMood(); })) return;
+
+  // e) Topic matching: the topic with the highest score wins.
+  const ranked = scoreTopics(text, words);
+  const best = ranked[0], second = ranked[1];
+  if (best.score > 0) {
+    const conf = Math.round((100 * best.score) / (best.score + second.score + 0.5));
+    think(best.item.topic, best.hits.map((h) => h.clue), "Reply from the " + best.item.topic + " topic" + (second.score ? " (beat " + second.item.topic + ")" : ""), conf);
+    botSay(pick(best.item.answers));
+    return;
+  }
+
+  // f) Nothing matched.
+  think("Unknown", [], "Ask the student to try another topic", 0);
+  botSay("Hmm, I'm still learning that one! 🤔 Try water, exercise, food, sleep, screens or stress, or type “help”.", { mood: "worried" });
 }
 
-// ---------- 5. Features ----------
-function addWater(n) { state.water = Math.max(0, Math.min(12, state.water + n)); save(); renderDay(); }
+// ---------- 8. Features ----------
+function addXP(n) {
+  const before = Math.floor(P.xp / 100);
+  P.xp += n;
+  if (Math.floor(P.xp / 100) > before) { const lv = Math.floor(P.xp / 100) + 1; toast("⬆️ Level up! Level " + lv + " · " + LEVELS[Math.min(lv - 1, LEVELS.length - 1)]); beep(660); setTimeout(() => beep(990), 160); }
+}
+function addWater(n) { const d = today(); const before = d.water; d.water = Math.max(0, Math.min(12, d.water + n)); if (d.water > before) addXP((d.water - before) * 5); save(); renderAll(); checkBadges(); }
 
 function logMove(activity, minutes) {
-  minutes = Math.max(1, Math.min(180, minutes));
-  state.moves.push({ activity, minutes, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
-  save(); renderDay();
-  const total = totalMinutes();
+  minutes = Math.max(1, Math.min(180, Math.round(minutes)));
+  today().moves.push({ activity, minutes, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+  addXP(Math.max(2, Math.round(minutes))); save(); renderAll();
+  const total = minutesToday();
   botSay(total >= 60
-    ? "🏆 " + minutes + " minutes of " + activity.toLowerCase() + " logged. You hit your 60-minute goal today, {name}!"
-    : "✅ " + minutes + " minutes of " + activity.toLowerCase() + " logged! Only " + (60 - total) + " minutes to go today.");
+    ? "🏆 " + minutes + " min of " + activity.toLowerCase() + " logged. You hit your 60-minute goal today, {name}!"
+    : "✅ " + minutes + " min of " + activity.toLowerCase() + " logged! " + (60 - total) + " minutes to go today.", { mood: total >= 60 ? "party" : "happy" });
   setChips(DEFAULT_CHIPS);
+  checkBadges();
 }
-const totalMinutes = () => state.moves.reduce((sum, m) => sum + m.minutes, 0);
 
-function progressReport() {
-  const mins = totalMinutes();
-  let stars = (state.water >= 8 ? 1 : 0) + (mins >= 60 ? 1 : 0);
-  return "📊 Today's progress, {name}:\n💧 Water: " + state.water + " / 8 glasses\n🏃 Active: " + mins + " / 60 minutes\n" +
-    (stars === 2 ? "⭐⭐ Both goals done. Champion!" : stars === 1 ? "⭐ One goal done. You can get the other!" : "Let's start! Drink a glass of water and take a short walk.");
+function mealCheck(foods) {
+  const groups = { fruitveg: [], protein: [], grain: [], treat: [] };
+  foods.forEach(({ f, group }) => groups[group].push(f));
+  let score = 1 + (groups.fruitveg.length ? 2 : 0) + (groups.protein.length ? 1.5 : 0) + (groups.grain.length ? 0.5 : 0) - Math.min(groups.treat.length, 2);
+  const stars = Math.max(1, Math.min(5, Math.round(score)));
+  const lines = ["🍽️ Meal check: " + "⭐".repeat(stars) + "☆".repeat(5 - stars)];
+  if (groups.fruitveg.length) lines.push("🥦 Fruit & veg: " + groups.fruitveg.join(", "));
+  if (groups.protein.length) lines.push("🥚 Protein: " + groups.protein.join(", "));
+  if (groups.grain.length) lines.push("🍞 Energy (grains): " + groups.grain.join(", "));
+  if (groups.treat.length) lines.push("🍟 Sometimes foods: " + groups.treat.join(", "));
+  const missing = [];
+  if (!groups.fruitveg.length) missing.push("a fruit or salad");
+  if (!groups.protein.length) missing.push("protein like daal, egg or dahi");
+  lines.push(missing.length ? "Next time add " + missing.join(" and ") + "." : "Balanced plate. Great choice, {name}!");
+  showThinking({ said: $("brainList").dataset.last || "", words: foods.map((x) => x.f), intent: "Meal checker", clues: foods.map((x) => x.f + " = " + x.group), action: "Score the meal by food groups: " + stars + "/5 stars", confidence: 100 });
+  addXP(5);
+  botSay(lines.join("\n"), { mood: stars >= 4 ? "party" : "happy" });
+  if (stars === 5 && !P.badges.includes("chef")) unlock("chef");
+}
+
+function askMood() {
+  waitingFor = "mood";
+  botSay("How are you feeling today, {name}?", { fast: true });
+  setChips(["😀 Great", "🙂 Good", "😐 Okay", "😟 Not good"]);
+}
+function setTodayMood(text) {
+  const map = [[/\b(not good|not great|bad|upset|tired|stressed|bura|kharab)\b/, "😟", "Not good", "I'm sorry you feel that way. 💙 Try box breathing: in 4, hold 4, out 4, hold 4. If it keeps happening, please talk to a parent or teacher. They want to help.", "worried"],
+               [/\b(great|awesome|amazing|excellent|zabardast)\b/, "😀", "Great", "Love that energy! 😀 Use it: a quick workout would be perfect.", "party"],
+               [/\b(good|fine|happy|theek|acha|achha)\b/, "🙂", "Good", "Nice! 🙂 Keep it going with a glass of water.", "happy"],
+               [/\b(okay|ok|meh|so so|normal)\b/, "😐", "Okay", "Okay days happen. A 5-minute walk or some music can lift your mood. 🎵", "happy"]];
+  const hit = map.find(([re]) => re.test(text));
+  if (!hit) return false;
+  today().mood = hit[1] + " " + hit[2]; addXP(5); save(); renderAll();
+  showThinking({ said: hit[2], words: text.trim().split(" "), intent: "Mood check-in", clues: [hit[2]], action: "Save today's mood, reply with care", confidence: 100 });
+  botSay(hit[3], { mood: hit[4] });
+  setChips(DEFAULT_CHIPS);
+  return true;
 }
 
 function askQuiz() {
-  quizIndex = Math.floor(Math.random() * QUIZ.length);
-  const item = QUIZ[quizIndex];
-  botSay("❓ " + item.q + "\n" + item.options.join("\n"));
+  quizItem = pick(QUIZ);
+  botSay("❓ " + quizItem.q + "\nA) " + quizItem.o[0] + "\nB) " + quizItem.o[1] + "\nC) " + quizItem.o[2], { fast: true });
   setChips(["A", "B", "C"]);
 }
 function checkQuiz(letter) {
-  const item = QUIZ[quizIndex]; quizIndex = -1;
-  botSay((letter === item.answer ? "✅ Correct! " : "❌ Not quite. The answer is " + item.answer.toUpperCase() + ". ") + item.why + "\nType \"quiz\" for another one!");
-  setChips(DEFAULT_CHIPS);
+  const item = quizItem; quizItem = null;
+  const right = letter === item.a;
+  showThinking({ said: letter.toUpperCase(), words: [letter], intent: "Quiz answer", clues: ["correct: " + item.a.toUpperCase()], action: right ? "Correct, +10 XP" : "Explain the right answer", confidence: 100 });
+  if (right) { P.quizRight++; addXP(10); save(); renderAll(); }
+  botSay((right ? "✅ Correct! +10 XP. " : "❌ Not quite. It's " + item.a.toUpperCase() + ". ") + item.why, { mood: right ? "party" : "happy" });
+  setChips(["❓ Another quiz", "📊 Progress", "💡 Tip"]);
+  checkBadges();
 }
 
-let reminderTimer = null;
-function setReminder(mins) {
-  clearInterval(reminderTimer); reminderTimer = null;
-  if (mins > 0) reminderTimer = setInterval(() => { botSay("⏰ Water break, {name}! Drink a glass and tap a glass on the right. 💧", "reminder"); beep(); }, mins * 60000);
+function healthScore(d = today()) {
+  const water = Math.round(Math.min(d.water / 8, 1) * 30);
+  const move = Math.round(Math.min(minutesToday(d) / 60, 1) * 40);
+  const sleep = d.sleep == null ? 0 : d.sleep >= 8 && d.sleep <= 10 ? 20 : d.sleep >= 7 && d.sleep <= 11 ? 12 : 6;
+  const mood = d.mood ? 10 : 0;
+  return { water, move, sleep, mood, total: water + move + sleep + mood };
 }
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator(); osc.frequency.value = 880; osc.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 0.2);
-  } catch (e) {}
+function progressReport() {
+  const d = today(), s = healthScore();
+  return "📊 Today's report, {name}:\n🏅 Health Score: " + s.total + "/100\n💧 Water: " + d.water + "/8 glasses\n🏃 Active: " + minutesToday() + "/60 min\n😴 Sleep: " +
+    (d.sleep == null ? "not logged" : d.sleep + " hours") + "\n😊 Mood: " + (d.mood || "not checked") + "\n🔥 Streak: " + streak() + " day(s)\n" +
+    (s.total >= 80 ? "Amazing day! ⭐" : s.total >= 50 ? "Good going! Finish your goals to reach 80+." : "Let's start: a glass of water and a short walk!");
+}
+function badgeReport() {
+  const lv = Math.floor(P.xp / 100) + 1;
+  const got = BADGES.filter((b) => P.badges.includes(b.id));
+  const next = BADGES.find((b) => !P.badges.includes(b.id));
+  return "🎮 Level " + lv + " · " + LEVELS[Math.min(lv - 1, LEVELS.length - 1)] + " (" + P.xp + " XP)\n🏅 Badges: " + (got.length ? got.map((b) => b.icon + " " + b.name).join(", ") : "none yet") +
+    (next ? "\nNext badge: " + next.icon + " " + next.name + ": " + next.how + "." : "\nYou collected every badge! 🏆");
 }
 
-// ---------- 6. Drawing the "My Day" panel ----------
-function renderDay() {
-  const glassBox = $("glasses"); glassBox.innerHTML = "";
-  for (let i = 0; i < 8; i++) {
-    const g = document.createElement("button");
-    g.type = "button"; g.className = "glass" + (i < state.water ? " full" : "");
-    g.setAttribute("aria-label", "Glass " + (i + 1) + (i < state.water ? ", drunk" : ""));
-    g.onclick = () => { addWater(i < state.water ? -1 : 1); };
-    glassBox.appendChild(g);
+function streak() {
+  let n = 0; const d = new Date();
+  for (;;) {
+    const day = data.days[dayKey(d)];
+    if (day && (minutesToday(day) >= 30 || day.water >= 6)) { n++; d.setDate(d.getDate() - 1); }
+    else if (n === 0 && dayKey(d) === dayKey()) { d.setDate(d.getDate() - 1); }  // today not done yet: count from yesterday
+    else break;
   }
-  $("waterCount").textContent = state.water + " / 8 glasses";
-  const mins = totalMinutes();
+  return n;
+}
+function checkBadges() {
+  const d = today();
+  const rules = { sip: d.water >= 1, hydro: d.water >= 8, champ: minutesToday() >= 60, quiz: P.quizRight >= 5, sleep: d.sleep >= 8, streak: streak() >= 3 };
+  for (const id in rules) if (rules[id] && !P.badges.includes(id)) unlock(id);
+}
+function unlock(id) {
+  const b = BADGES.find((x) => x.id === id);
+  P.badges.push(id); addXP(20); save(); renderAll();
+  toast("🏅 Badge unlocked: " + b.icon + " " + b.name);
+  beep(784); setTimeout(() => beep(1046, 0.25), 150);
+  setTimeout(() => botSay("🏅 New badge: " + b.icon + " " + b.name + "! (" + b.how + ") +20 XP", { cls: "win", mood: "party", fast: true }), 900);
+}
+
+// Reminders
+const timers = { water: null, move: null };
+function setReminder(kind, mins) {
+  clearInterval(timers[kind]); timers[kind] = null;
+  if (!mins) return;
+  timers[kind] = setInterval(() => {
+    const msg = kind === "water" ? "⏰ Water break, {name}! Drink a glass, then tap a glass on the right. 💧" : "⏰ Move break! Stand up, stretch and walk around for 2 minutes. 🚶";
+    botSay(msg, { cls: "reminder", fast: true });
+    beep(); setTimeout(beep, 250);
+    try { if (window.Notification && Notification.permission === "granted") new Notification("FitFlex AI", { body: msg.replace("{name}", P.name || "friend") }); } catch (e) {}
+  }, mins * 60000);
+}
+
+// ---------- 9. Workout coach ----------
+let coach = null;
+function openCoach() { $("coach").hidden = false; $("coachStart").hidden = false; $("coachRun").hidden = true; }
+function closeCoach() { if (coach) clearInterval(coach.timer); coach = null; $("coach").hidden = true; setMood("happy"); }
+function startRoutine(name) {
+  coach = { steps: ROUTINES[name], i: -1, left: 0, elapsed: 0, paused: false, timer: null, name };
+  $("coachStart").hidden = true; $("coachRun").hidden = false;
+  nextStep();
+  coach.timer = setInterval(tick, 1000);
+}
+function nextStep() {
+  coach.i++;
+  if (coach.i >= coach.steps.length) return finishRoutine();
+  const s = coach.steps[coach.i], moves = coach.steps.filter((x) => !x.rest);
+  coach.left = s.secs;
+  $("coachStep").textContent = s.rest ? "Rest" : "Move " + (moves.indexOf(s) + 1) + " of " + moves.length;
+  $("coachEmoji").textContent = s.emoji; $("coachName").textContent = s.name; $("coachHow").textContent = s.how;
+  $("coachCount").className = "count" + (s.rest ? " rest" : "");
+  const nxt = coach.steps[coach.i + 1];
+  $("coachNext").textContent = nxt ? "Next: " + nxt.name : "Last one. Finish strong!";
+  setMood(s.rest ? "happy" : "party");
+  speak(s.rest ? "Rest. " + s.how : s.name + ". " + s.secs + " seconds. Go!");
+  beep(s.rest ? 520 : 880);
+  drawCoach();
+}
+function tick() {
+  if (!coach || coach.paused) return;
+  coach.left--; coach.elapsed++;
+  if (coach.left > 0 && coach.left <= 3) beep(660, 0.08);
+  if (coach.left <= 0) nextStep(); else drawCoach();
+}
+function drawCoach() {
+  const s = coach.steps[coach.i];
+  $("coachCount").textContent = coach.left;
+  $("coachBar").style.width = (100 * (s.secs - coach.left)) / s.secs + "%";
+}
+function finishRoutine() {
+  const mins = Math.max(1, Math.round(coach.elapsed / 60)), label = coach.name === "full" ? "Coach workout (full)" : "Coach workout (quick)";
+  closeCoach();
+  speak("Workout complete! Great job!");
+  addXP(25);
+  if (!P.badges.includes("coach")) unlock("coach");
+  logMove(label, mins);
+}
+
+// ---------- 10. Dashboard drawing ----------
+function renderAll() {
+  const d = today(), s = healthScore(), lv = Math.floor(P.xp / 100) + 1, title = LEVELS[Math.min(lv - 1, LEVELS.length - 1)];
+  $("dateLabel").textContent = new Date().toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+  $("ringValue").setAttribute("stroke-dashoffset", 289 - (289 * s.total) / 100);
+  $("scoreText").textContent = s.total;
+  [["Water", s.water, 30], ["Move", s.move, 40], ["Sleep", s.sleep, 20], ["Mood", s.mood, 10]].forEach(([k, v, max]) => {
+    $("p" + k).style.width = (100 * v) / max + "%"; $("s" + k).textContent = v + "/" + max;
+  });
+  $("levelName").textContent = "Level " + lv + " · " + title;
+  $("levelPill").textContent = "Level " + lv + " · " + title;
+  $("xpText").textContent = (P.xp % 100) + " / 100 XP";
+  $("xpBar").style.width = (P.xp % 100) + "%";
+  $("streakPill").textContent = "🔥 " + streak() + "-day streak";
+
+  const g = $("glasses"); g.innerHTML = "";
+  for (let i = 0; i < 8; i++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "glass" + (i < d.water ? " full" : "");
+    b.setAttribute("aria-label", "Glass " + (i + 1) + (i < d.water ? ", drunk" : ""));
+    b.onclick = () => addWater(i < d.water ? -1 : 1);
+    g.appendChild(b);
+  }
+  $("waterCount").textContent = d.water + " / 8 glasses";
+  const mins = minutesToday();
   $("moveCount").textContent = mins + " / 60 min";
   $("moveBar").style.width = Math.min(100, (mins / 60) * 100) + "%";
-  $("moveLog").innerHTML = "";
-  state.moves.slice().reverse().forEach((m) => {
-    const li = document.createElement("li");
-    li.innerHTML = "<span></span><span></span>";
-    li.children[0].textContent = m.activity + " · " + m.minutes + " min";
-    li.children[1].textContent = m.time;
-    $("moveLog").appendChild(li);
+  const log = $("moveLog"); log.innerHTML = "";
+  d.moves.slice().reverse().forEach((m) => {
+    const li = document.createElement("li"); li.innerHTML = "<span></span><span></span>";
+    li.children[0].textContent = m.activity + " · " + m.minutes + " min"; li.children[1].textContent = m.time;
+    log.appendChild(li);
   });
+  $("sleepVal").textContent = d.sleep == null ? "–" : d.sleep + " h";
+  $("moodVal").textContent = d.mood || "–";
+
+  drawChart();
+  const bx = $("badges"); bx.innerHTML = "";
+  BADGES.forEach((b) => {
+    const el = document.createElement("div");
+    el.className = "badge" + (P.badges.includes(b.id) ? " on" : "");
+    el.title = b.how;
+    el.innerHTML = "<span class=\"icon\"></span><span></span>";
+    el.children[0].textContent = b.icon; el.children[1].textContent = b.name;
+    bx.appendChild(el);
+  });
+  $("badgeCount").textContent = P.badges.length + " / " + BADGES.length;
+}
+function drawChart() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) { const dt = new Date(); dt.setDate(dt.getDate() - i); days.push({ dt, d: data.days[dayKey(dt)] || EMPTY_DAY(), today: i === 0 }); }
+  const max = Math.max(90, ...days.map((x) => minutesToday(x.d)));
+  const top = 16, h = 112, y = (v) => top + h - (v / max) * h;
+  let svg = "<line class=\"grid\" x1=\"10\" x2=\"310\" y1=\"" + (top + h) + "\" y2=\"" + (top + h) + "\"/>";
+  svg += "<line class=\"goal\" x1=\"10\" x2=\"318\" y1=\"" + y(60) + "\" y2=\"" + y(60) + "\"/><text class=\"lbl\" x=\"318\" y=\"" + (y(60) - 4) + "\" text-anchor=\"end\">60 min</text>";
+  days.forEach((x, i) => {
+    const m = minutesToday(x.d), cx = 24 + i * 40, bh = Math.max(2, (m / max) * h);
+    svg += "<rect class=\"barm" + (m < 60 ? " low" : "") + "\" x=\"" + (cx - 13) + "\" y=\"" + (top + h - bh) + "\" width=\"26\" height=\"" + bh + "\" rx=\"5\"><title>" + m + " active minutes</title></rect>";
+    if (m) svg += "<text class=\"val\" x=\"" + cx + "\" y=\"" + (top + h - bh - 4) + "\" text-anchor=\"middle\">" + m + "</text>";
+    svg += "<text class=\"lbl" + (x.today ? " today" : "") + "\" x=\"" + cx + "\" y=\"" + (top + h + 18) + "\" text-anchor=\"middle\">" + (x.today ? "Today" : x.dt.toLocaleDateString([], { weekday: "short" })) + "</text>";
+    svg += "<text class=\"wtr\" x=\"" + cx + "\" y=\"" + (top + h + 34) + "\" text-anchor=\"middle\">💧" + x.d.water + "</text>";
+  });
+  $("chart").innerHTML = svg;
 }
 
-// ---------- 7. Wiring everything up ----------
+// ---------- 11. Wiring it all up ----------
 function handleUser(text) {
-  text = text.replace(/^[^\w]+/u, "").trim(); // drop emoji from chip labels
+  text = text.replace(/^[^\p{L}\p{N}]+/u, "").trim();   // drop emoji from chip labels
   if (!text) return;
+  if (/^another quiz$/i.test(text)) text = "quiz";
   addMessage(text, "user");
+  $("brainList").dataset.last = text;
   reply(text);
 }
-$("composer").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const input = $("userInput"); handleUser(input.value); input.value = "";
-});
-$("addMove").onclick = () => { addMessage("I did " + $("minutes").value + " minutes of " + $("activity").value.toLowerCase(), "user"); logMove($("activity").value, +$("minutes").value || 0); };
-$("every").onchange = (e) => { const m = +e.target.value; setReminder(m); botSay(m ? "⏰ Water reminder set for every " + m + " minute" + (m === 1 ? "" : "s") + "." : "Water reminder turned off."); };
-$("resetDay").onclick = () => { state.water = 0; state.moves = []; save(); renderDay(); botSay("🌅 New day, fresh start! Let's go, {name}!"); };
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); const i = $("userInput"); handleUser(i.value); i.value = ""; });
+$("addMove").onclick = () => { addMessage("I did " + $("minutes").value + " minutes of " + $("activity").value.toLowerCase(), "user"); logMove($("activity").value, +$("minutes").value || 1); };
+$("waterEvery").onchange = (e) => { const m = +e.target.value; setReminder("water", m); botSay(m ? "💧 Water reminder: every " + m + " min." : "Water reminder off.", { fast: true }); };
+$("moveEvery").onchange = (e) => { const m = +e.target.value; setReminder("move", m); botSay(m ? "🚶 Move-break reminder: every " + m + " min." : "Move-break reminder off.", { fast: true }); };
+$("openCoach").onclick = openCoach;
+$("coachCancel").onclick = closeCoach;
+$("coachStop").onclick = () => { const done = coach && coach.elapsed >= 30; const mins = coach ? Math.round(coach.elapsed / 60) : 0; closeCoach(); if (done && mins) logMove("Coach workout (partial)", mins); };
+$("coachSkip").onclick = () => coach && nextStep();
+$("coachPause").onclick = (e) => { if (!coach) return; coach.paused = !coach.paused; e.target.textContent = coach.paused ? "Resume" : "Pause"; };
+document.querySelectorAll(".choice").forEach((b) => (b.onclick = () => startRoutine(b.dataset.routine)));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("coach").hidden) closeCoach(); });
+$("moodBtn").onclick = () => { addMessage("Mood check", "user"); askMood(); };
 
-load();
-renderDay();
-if (state.name) setChips(DEFAULT_CHIPS);
-if (state.name) botSay("Welcome back, {name}! 🤖 " + (state.water || state.moves.length ? "Type \"progress\" to see how you're doing today." : "Shall we start with a glass of water?"));
-else { addMessage("Hi! I'm FitFlex AI 🤖, your smart fitness buddy. What's your name?", "bot"); waitingFor = "name"; }
+$("voiceBtn").setAttribute("aria-pressed", String(P.voice));
+$("voiceBtn").onclick = () => {
+  P.voice = !P.voice; save();
+  $("voiceBtn").setAttribute("aria-pressed", String(P.voice));
+  if (!("speechSynthesis" in window)) { toast("This browser can't speak. Try Chrome or Edge."); return; }
+  if (P.voice) speak("Voice on. Hello " + (P.name || "friend") + "!"); else { try { speechSynthesis.cancel(); } catch (e) {} robot.classList.remove("talking"); }
+};
+$("brainBtn").onclick = () => { const on = $("brainCard").hidden; $("brainCard").hidden = !on; $("brainBtn").setAttribute("aria-pressed", String(on)); };
+
+$("notifyBtn").onclick = async () => {
+  try {
+    if (!window.Notification) throw new Error();
+    const p = await Notification.requestPermission();
+    toast(p === "granted" ? "Pop-up alerts are on ✅" : "Pop-up alerts were blocked. In-page reminders still work.");
+  } catch (e) { toast("Pop-up alerts aren't available here. In-page reminders still work."); }
+};
+$("demoBtn").onclick = () => {
+  const sample = [[45, 6, 9], [70, 8, 8], [30, 5, 7], [65, 7, 9], [20, 4, 8], [80, 8, 9]];
+  sample.forEach(([m, w, s], i) => {
+    const dt = new Date(); dt.setDate(dt.getDate() - (6 - i));
+    data.days[dayKey(dt)] = { water: w, moves: [{ activity: "Demo activity", minutes: m, time: "" }], sleep: s, mood: "🙂 Good" };
+  });
+  save(); renderAll(); toast("Demo week loaded (sample data for presenting)");
+};
+let resetArmed = false;
+$("resetBtn").onclick = (e) => {
+  if (!resetArmed) { resetArmed = true; e.target.textContent = "Tap again to erase"; setTimeout(() => { resetArmed = false; e.target.textContent = "Erase all data"; }, 3000); return; }
+  try { localStorage.removeItem(KEY); } catch (err) {}
+  location.reload();
+};
+
+// Speech recognition (microphone) when the browser supports it, e.g. Chrome.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) {
+  const mic = $("micBtn"); mic.hidden = false;
+  let rec = null;
+  mic.onclick = () => {
+    try {
+      rec = new SR(); rec.lang = "en-US"; rec.interimResults = false;
+      rec.onstart = () => { mic.classList.add("listening"); setMood("think"); };
+      rec.onend = () => { mic.classList.remove("listening"); setMood("happy"); };
+      rec.onresult = (ev) => handleUser(ev.results[0][0].transcript);
+      rec.onerror = () => toast("I couldn't hear you. Check the microphone permission, or type instead.");
+      rec.start();
+    } catch (e) { toast("The microphone isn't available here. Please type instead."); }
+  };
+}
+
+// Start!
+setMood("happy");
+renderAll();
+if (P.name) {
+  setChips(DEFAULT_CHIPS);
+  addMessage("Welcome back, " + P.name + "! 🤖 " + (today().water || today().moves.length ? "Type “progress” to see your Health Score." : "New day, new goals. Start with a glass of water?"), "bot");
+} else {
+  addMessage("Hi! I'm FitFlex AI 🤖, your smart fitness buddy for SDG 3. What's your name?", "bot");
+  waitingFor = "name";
+}
 </script>
 </body>
 </html>

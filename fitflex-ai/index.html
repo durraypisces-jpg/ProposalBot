@@ -207,6 +207,24 @@ button.ghost.danger { color: var(--alert); border-color: var(--alert); }
 .badge.on .icon { filter: none; opacity: 1; }
 footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 
+/* ---------- Always-visible stats strip, water text, memory ---------- */
+.quick { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--bg); font-size: 0.9rem; }
+.quick b { font-variant-numeric: tabular-nums; }
+.quick .qw b { color: var(--water); }
+.quick .qm b { color: var(--move); }
+.quick .qs b { color: var(--teal); }
+.water-big { margin: 0; font: 800 1.15rem/1.3 var(--font-display); color: var(--water); }
+.glass { font: 800 0.85rem var(--font-body); color: var(--water); display: grid; place-items: end center; padding-bottom: 4px; }
+.glass.full { color: var(--surface); }
+.memlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.92rem; }
+.memlist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border-bottom: 1px dashed var(--line); padding-block: 4px; }
+.memlist li span { overflow-wrap: anywhere; }
+.memlist li span b { color: var(--muted); font-weight: 700; }
+.memlist .empty { color: var(--muted); grid-template-columns: 1fr; border: 0; }
+.forget { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 8px; padding: 0 8px; cursor: pointer; font-weight: 800; }
+.forget:hover { color: var(--alert); border-color: var(--alert); }
+.subhead { font: 800 0.95rem var(--font-display); margin: 4px 0 0; color: var(--ink); }
+
 /* ---------- Workout coach ---------- */
 .overlay {
   position: fixed; inset: 0; background: rgba(6, 20, 24, 0.6); display: grid; place-items: center; z-index: 20;
@@ -268,6 +286,12 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
           <button class="tool" id="brainBtn" type="button" aria-pressed="true">🧠 Brain view</button>
           <button class="tool" id="moodBtn" type="button">😊 Mood check</button>
         </div>
+        <div class="quick" aria-label="Today at a glance">
+          <span class="qw">💧 Water: <b id="qWater">0 / 8</b> glasses</span>
+          <span class="qm">🏃 Active: <b id="qMove">0 / 60</b> min</span>
+          <span class="qs">❤️ Score: <b id="qScore">0</b></span>
+          <span>👤 <b id="qName">–</b></span>
+        </div>
         <div class="messages" id="messages" aria-live="polite"></div>
         <div class="chips" id="chips"></div>
         <form class="composer" id="composer">
@@ -311,6 +335,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 
       <div class="card">
         <h2>💧 Water <small id="waterCount">0 / 8 glasses</small></h2>
+        <p class="water-big" id="waterBig">You haven't had any water yet today.</p>
         <div class="glasses" id="glasses"></div>
         <p class="hint">Tap a glass when you drink one. Teens need about 6–8 glasses a day, more in hot weather or after sport.</p>
       </div>
@@ -338,6 +363,16 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
         <h2>📈 My week <small>active minutes</small></h2>
         <svg class="chart" id="chart" viewBox="0 0 320 172" role="img" aria-label="Active minutes for the last 7 days"></svg>
         <p class="hint">Dashed line = 60-minute goal. Blue numbers = glasses of water.</p>
+      </div>
+
+      <div class="card">
+        <h2>🧠 FitFlex memory <small id="memCount">0 facts</small></h2>
+        <ul class="memlist" id="memList"></ul>
+        <p class="hint">Tell me things like “I am 13 years old”, “my favourite sport is cricket” or “I am allergic to peanuts”. Ask “what do you know about me?”</p>
+        <div id="learnBox" hidden>
+          <p class="subhead">📚 Answers you taught me</p>
+          <ul class="memlist" id="learnList"></ul>
+        </div>
       </div>
 
       <div class="card">
@@ -413,7 +448,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; }
 // ---------- 1. Knowledge: topics, keywords (English + Roman Urdu) and answers ----------
 const BRAIN = [
   { topic: "Greeting", keywords: ["hi", "hello", "hey", "salam", "assalam", "aoa", "good morning", "good evening"],
-    answers: ["Hello {name}! 👋 Ready to get healthy today?", "Hi {name}! Shall we do a tip, a workout or a quiz?"] },
+    answers: ["{greet}, {name}! 👋 Ready to get healthy today?", "Hi {name}! Shall we do a tip, a workout or a quiz?"] },
   { topic: "How are you", keywords: ["how are you", "how r u", "kaise ho", "kya haal"],
     answers: ["I'm charged to 100%! ⚡ How are you feeling today? Tap “Mood check” to tell me."] },
   { topic: "Water", keywords: ["water", "thirsty", "hydrate", "hydration", "drink", "pani", "paani", "pyaas", "bottle"],
@@ -424,14 +459,14 @@ const BRAIN = [
               "Want a stronger body? Mix it up: running for your heart, push-ups for muscles, stretching to stay flexible. Try the Workout Coach! 💪"] },
   { topic: "Stretch", keywords: ["stretch", "sitting", "posture", "neck", "break", "stiff"],
     answers: ["Desk stretch break! 🧘\n1. Roll your shoulders 5 times.\n2. Reach up high for 10 seconds.\n3. Turn your head slowly left and right.\n4. March on the spot for 30 seconds."] },
-  { topic: "Food", keywords: ["food", "eat", "fruit", "vegetable", "lunch", "breakfast", "dinner", "snack", "healthy", "junk", "khana", "nashta", "phal", "sabzi"],
+  { topic: "Food", keywords: ["food", "eat", "fruit", "vegetable", "lunch", "breakfast", "dinner", "snack", "healthy food", "junk", "khana", "nashta", "phal", "sabzi"],
     answers: ["Make half your plate fruit and vegetables 🥦🍎, a quarter roti or rice, and a quarter protein like daal, eggs, chicken or beans.\nTell me what you ate and I'll check your meal!",
               "Never skip breakfast! It gives your brain energy for school. Try an egg with roti, or oats with banana. 🍳",
               "Swap fizzy drinks for water or lassi, and chips for fruit or roasted chana. 🍌"] },
   { topic: "Sugar", keywords: ["sugar", "sweet", "candy", "chocolate", "soda", "cold drink", "fizzy", "meetha", "mithai"],
     answers: ["Sweets are fine sometimes, but too much sugar harms teeth and gives you an energy crash. 🍬 One can of soda has about 8 teaspoons of sugar!"] },
   { topic: "Sleep", keywords: ["sleep", "tired", "bed", "night", "sleepy", "neend", "sona", "thakan", "thaka"],
-    answers: ["Teens need about 8–10 hours of sleep. 😴 Put screens away 30 minutes before bed and sleep at the same time every night.\nTell me “I slept 8 hours” to track it."] },
+    answers: ["At your age you need about {sleepGoal} of sleep. 😴 Put screens away 30 minutes before bed and sleep at the same time every night.\nTell me “I slept 8 hours” to track it."] },
   { topic: "Screens", keywords: ["screen", "phone", "mobile", "video game", "gaming", "tv", "tablet", "youtube"],
     answers: ["Follow the 20-20-20 rule 👀: every 20 minutes, look at something 20 feet away for 20 seconds. Try swapping one hour of screen time for outdoor play!"] },
   { topic: "Hygiene", keywords: ["wash", "hands", "germs", "brush", "teeth", "clean", "bath", "haath", "daant"],
@@ -440,8 +475,54 @@ const BRAIN = [
     answers: ["Try box breathing 🌬️: in for 4, hold for 4, out for 4, hold for 4. Repeat 4 times. Exercise and good sleep also calm your mind.\nIf worries won't go away, talk to someone you trust."] },
   { topic: "Body image", keywords: ["weight", "fat", "skinny", "diet", "thin", "mota", "patla"],
     answers: ["Healthy bodies come in all shapes and sizes, and your body is still growing. 💙 Focus on habits, not the scale: eat a balanced plate, move every day and sleep well. Never start a diet without talking to a parent or doctor."] },
+  { topic: "Cheat day", keywords: ["cheat day", "cheat meal", "cheat", "treat day", "junk day", "cheating", "cheatday"],
+    answers: ["You don't need a “cheat day”, {name}! 🍕 Food isn't cheating. Use the 80/20 rule: eat healthy about 80% of the time and enjoy a small treat sometimes, like one slice of pizza, not a whole day of junk.\nA full day of junk can give you a stomach ache and low energy. Keep drinking water and moving that day too!",
+              "Treats are okay sometimes! 🍫 Better than a whole cheat day: have one small treat after a healthy meal, share it with a friend, then go and play outside. Your body still gets what it needs."] },
+  { topic: "Health", keywords: ["health", "stay healthy", "healthy life", "healthy lifestyle", "be healthy", "sehat", "fit and healthy"],
+    answers: ["The 5 keys to good health 🗝️:\n1. Drink 6–8 glasses of water\n2. Move 60 minutes a day\n3. Eat a balanced plate\n4. Sleep {sleepGoal}\n5. Take care of your feelings\nI can track all of these for you!"] },
+  { topic: "Protein", keywords: ["protein", "build muscle", "muscles grow", "body building", "bodybuilding"],
+    answers: ["Protein builds and repairs your muscles 💪. Good sources: daal, eggs, chicken, fish, beans, chana, milk and dahi. Try to have some protein in every meal. Kids don't need protein shakes. Real food is best!"] },
+  { topic: "Bones & growing", keywords: ["bones", "calcium", "height", "grow taller", "taller", "tall", "lamba", "haddi", "grow"],
+    answers: ["Strong bones need calcium 🥛 (milk, dahi, cheese), vitamin D (morning sunlight ☀️) and jumping activities like skipping and football. Good sleep matters too, because your body grows most while you sleep!"] },
+  { topic: "Heart", keywords: ["heart", "heartbeat", "pulse", "cardio", "dil"],
+    answers: ["Your heart is a muscle that gets stronger with exercise ❤️. Running, cycling, skipping and swimming are great for it.\nTry this: find the pulse on your wrist, count the beats for 15 seconds, then multiply by 4. That's your heart rate!"] },
+  { topic: "Fast food", keywords: ["fast food", "junk food", "burger", "pizza", "fries", "shawarma", "zinger", "nuggets"],
+    answers: ["Fast food like burgers, pizza and fries has lots of oil, salt and sugar 🍔. Enjoy it sometimes, not every day.\nHealthier swaps: a homemade chicken roll, grilled tikka with salad, or fruit chaat."] },
+  { topic: "Energy drinks", keywords: ["energy drink", "energy drinks", "caffeine", "coffee", "tea", "chai", "red bull", "sting"],
+    answers: ["Energy drinks are not for kids ⚡❌. They have lots of caffeine and sugar that can make your heart race and ruin your sleep.\nFor real energy: water, a banana and a good night's sleep. A small cup of chai is okay, but not close to bedtime."] },
+  { topic: "Walking & steps", keywords: ["steps", "walking", "10000 steps", "pedometer", "step count"],
+    answers: ["Walking is a super exercise! 🚶 Aim for about 10,000 steps or more a day. Easy ways: take the stairs, walk to the shop with a grown-up, walk while you talk on the phone, and walk around during breaks."] },
+  { topic: "Warm-up", keywords: ["warm up", "warmup", "cool down", "before running", "before exercise", "before playing"],
+    answers: ["Always warm up for 5 minutes before sport 🔥: march on the spot, arm circles and light jogging. After playing, cool down with slow stretches. This keeps your muscles safe and ready."] },
+  { topic: "Hot weather", keywords: ["hot", "heat", "summer", "garmi", "sweat", "sweating", "heatstroke", "sunstroke", "loo"],
+    answers: ["In hot weather ☀️: drink water before you feel thirsty, wear a cap, play in the morning or evening (not 12–3 pm), and rest in the shade.\nDizzy or a headache in the heat? Tell an adult right away."] },
+  { topic: "Fasting (roza)", keywords: ["roza", "ramadan", "ramzan", "fasting", "fast", "sehri", "iftar", "iftari"],
+    answers: ["If you keep roza 🌙: at sehri eat slow-energy food like oats, eggs, roti and dahi, and drink 2–3 glasses of water. At iftar start with water and dates, not lots of fried pakoras. Sip water between iftar and sehri, and do light exercise after iftar, not during the fast."] },
+  { topic: "Skipping meals", keywords: ["skip breakfast", "skip lunch", "skipping meals", "skip meals", "not hungry", "no time to eat"],
+    answers: ["Skipping meals makes you tired, cranky and unable to focus in class 😩. Eat 3 meals and 1–2 healthy snacks. No time for breakfast? Grab a banana and a glass of milk."] },
+  { topic: "Motivation", keywords: ["lazy", "motivation", "motivate", "motivated", "bored", "boring", "sust", "don't want to exercise", "dont want to exercise"],
+    answers: ["Feeling lazy? 😅 Start tiny: just 2 minutes of jumping jacks. Most times you'll want to keep going! Play with friends, use music you love, and collect badges here. Small steps every day beat one big workout once a week.",
+              "Champions aren't born, they're built one day at a time 🏆. Set a mini goal: 10 minutes today. Tap “Workout Coach” and I'll count for you!"] },
+  { topic: "Smoking & vaping", keywords: ["smoke", "smoking", "cigarette", "cigarettes", "vape", "vaping", "sheesha", "shisha", "gutka", "naswar", "tobacco"],
+    answers: ["Smoking, vaping, sheesha, gutka and naswar harm your lungs, heart and teeth 🚭. They are addictive, so the best choice is to never start. If someone pressures you, say “No thanks, I'm an athlete!” and tell a trusted adult."] },
+  { topic: "Sports", keywords: ["cricket", "football", "badminton", "swimming", "cycling", "basketball", "hockey", "sports", "tennis", "volleyball"],
+    answers: ["Sports are amazing for your health! 🏏⚽ They build your heart, muscles, teamwork and confidence. 60 minutes of play covers your whole daily activity goal. Tell me “I played football for 30 minutes” to log it."] },
+  { topic: "Eyes", keywords: ["eyes", "eyesight", "vision", "aankh", "aankhen"],
+    answers: ["Protect your eyes 👀: follow the 20-20-20 rule, keep screens an arm's length away, play outdoors (daylight is good for eyes) and eat carrots and green vegetables."] },
+  { topic: "Joke", keywords: ["joke", "jokes", "funny", "make me laugh", "lateefa", "laugh"],
+    answers: ["Why did the banana go to the doctor? 🍌 Because it wasn't peeling well! 😂",
+              "What do you call a sleeping dinosaur? 🦖 A dino-snore! 😴",
+              "Why don't eggs tell jokes? 🥚 They'd crack each other up!",
+              "Why did the cricket team bring string? 🏏 To tie the match! 😄",
+              "Why did the student eat his homework? 📚 Because the teacher said it was a piece of cake! 🍰"] },
+  { topic: "Fun fact", keywords: ["fun fact", "fact", "facts", "did you know", "interesting", "amazing fact"],
+    answers: ["🤓 Fun fact: your heart beats about 100,000 times every day!",
+              "🤓 Fun fact: your brain is about 75% water, so drinking water helps you think!",
+              "🤓 Fun fact: you have more than 600 muscles in your body!",
+              "🤓 Fun fact: you blink about 15–20 times a minute. That's over 10,000 blinks a day!",
+              "🤓 Fun fact: bone is stronger than steel of the same weight!"] },
   { topic: "About FitFlex", keywords: ["who are you", "what are you", "your name", "what can you do", "help", "features"],
-    answers: ["I'm FitFlex AI 🤖, a smart fitness buddy built for SDG 3: Good Health and Well-being.\nI can:\n• give health tips (“tip”)\n• count water (“I drank 2 glasses”)\n• track exercise (“I ran for 20 minutes”)\n• check your meal (“I ate roti and daal”)\n• track sleep and mood\n• coach a workout, quiz you and give badges\n• understand some Roman Urdu (“maine 2 glass pani piya”)"] },
+    answers: ["I'm FitFlex AI 🤖, a smart fitness buddy built for SDG 3: Good Health and Well-being.\nI can:\n• give health tips (“tip”)\n• count water (“I drank 2 glasses”)\n• track exercise (“I ran for 20 minutes”)\n• check your meal (“I ate roti and daal”)\n• track sleep and mood\n• coach a workout, quiz you and give badges\n• understand some Roman Urdu (“maine 2 glass pani piya”)\n• remember you (“I am 13 years old”, “what is my name?”)\n• learn new answers you teach me"] },
   { topic: "Thanks", keywords: ["thanks", "thank you", "shukriya", "great", "awesome", "cool", "nice"],
     answers: ["You're welcome, {name}! Keep it up! 🌟", "Anytime! Healthy habits are superpowers. 💪"] },
   { topic: "Goodbye", keywords: ["bye", "goodbye", "see you", "allah hafiz", "khuda hafiz"],
@@ -482,7 +563,7 @@ const SAFETY_WORDS = ["hurt", "pain ", "painful", "injur", "bleed", "dizzy", "fa
 // Meal checker: food words and their food group.
 const FOODS = {
   fruitveg: ["apple", "banana", "orange", "mango", "fruit", "salad", "vegetable", "vegetables", "sabzi", "carrot", "cucumber", "spinach", "palak", "guava", "dates", "grapes", "watermelon", "kheera", "tomato"],
-  protein: ["egg", "eggs", "anda", "anday", "daal", "dal", "chicken", "fish", "beans", "chana", "chickpeas", "milk", "doodh", "yogurt", "dahi", "lassi", "paneer", "meat", "nuts", "lentils"],
+  protein: ["egg", "eggs", "anda", "anday", "daal", "dal", "chicken", "fish", "beans", "chana", "chickpeas", "milk", "doodh", "yogurt", "dahi", "lassi", "paneer", "meat", "nuts", "lentils", "peanut", "peanuts", "mungphali", "almonds"],
   grain: ["roti", "chapati", "rice", "chawal", "oats", "bread", "paratha", "naan", "cereal"],
   treat: ["chips", "soda", "cola", "coke", "pepsi", "cold drink", "burger", "pizza", "fries", "samosa", "pakora", "pakoray", "candy", "chocolate", "cake", "biscuit", "biscuits", "ice cream", "noodles", "nimko", "jalebi", "mithai", "donut", "sweets"]
 };
@@ -537,6 +618,11 @@ try { const saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved &
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} };
 const today = () => (data.days[dayKey()] = data.days[dayKey()] || EMPTY_DAY());
 const P = data.profile;
+// Long-term memory about the student, answers users taught FitFlex, and the saved chat.
+P.memory = P.memory || { age: null, grade: null, favs: {}, allergy: "", goal: "", city: "", notes: [] };
+P.memory.favs = P.memory.favs || {}; P.memory.notes = P.memory.notes || [];
+data.learned = data.learned || [];
+data.chat = data.chat || [];
 
 // ---------- 3. Small helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -609,15 +695,19 @@ function toast(text) {
 const box = $("messages");
 let waitingFor = null, pendingActivity = "", quizItem = null;
 
-function addMessage(text, who, cls) {
+function addMessage(text, who, cls, restoring) {
   const div = document.createElement("div");
   div.className = "msg " + who + (cls ? " " + cls : "");
   div.textContent = text;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+  if (!restoring) { data.chat = data.chat.concat({ t: text, w: who, c: cls || "" }).slice(-80); save(); }  // conversation memory
 }
 function botSay(text, opts = {}) {
-  text = text.replaceAll("{name}", P.name || "friend");
+  const hour = new Date().getHours();
+  text = text.replaceAll("{name}", P.name || "friend")
+    .replaceAll("{greet}", hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening")
+    .replaceAll("{sleepGoal}", P.memory.age && P.memory.age <= 12 ? "9–12 hours" : "8–10 hours");
   setMood("think");
   const typing = document.createElement("div");
   typing.className = "typing"; typing.textContent = "FitFlex is thinking…";
@@ -668,12 +758,20 @@ function confidence(pct) {
 }
 
 // ---------- 7. Understanding a message ----------
+// Small words that carry no topic meaning.
+const STOP = new Set("i me my a an the is are am was were be to of for and or in on at it do does did you your what how can could should would will with about tell please that this so very much many some any kya hai ka ki ke ko mein main mujhe".split(" "));
+// Real words that must never be "typo-fixed" into another word (e.g. health → healthy).
+const COMMON = new Set("health healthy cheat there their where other about should would could think thing things today really people every after before always never maybe start little better water later".split(" "));
+let VOCAB = null;
+const vocab = () => VOCAB || (VOCAB = new Set(BRAIN.flatMap((t) => t.keywords.flatMap((k) => k.split(" ")))));
 function matchKeyword(k, text, words) {
-  if (k.includes(" ")) return text.includes(" " + k + " ") ? { clue: k, weight: 1 } : null;
+  if (k.includes(" ")) return text.includes(" " + k + " ") ? { clue: k, weight: 2 } : null;      // phrases are strong clues
   for (const w of words) {
+    if (STOP.has(w)) continue;
     if (w === k) return { clue: k, weight: 1 };
-    if (k.length >= 4 && w.startsWith(k)) return { clue: w, weight: 1 };                          // word family: exercises → exercise
-    if (k.length >= 5 && w.length >= 5 && editDistance(w, k) === 1) return { clue: w + " → " + k, weight: 0.8 }; // typo fix
+    if (k.length >= 4 && w.startsWith(k) && w.length - k.length <= 3) return { clue: w, weight: 0.9 };   // word family: exercises → exercise
+    if (k.length >= 5 && w.length >= 4 && !vocab().has(w) && !COMMON.has(w) && editDistance(w, k) === 1)
+      return { clue: w + " → " + k, weight: 0.6 };                                                       // typo fix
   }
   return null;
 }
@@ -698,6 +796,16 @@ function reply(raw) {
   const words = text.trim().split(" ").filter(Boolean);
   const think = (intent, clues, action, conf = 100) => showThinking({ said: raw, words, intent, clues, action, confidence: conf });
 
+  // Teaching: the student is giving FitFlex a new answer.
+  if (waitingFor === "teach") { waitingFor = null; saveLearned(lastUnknown, raw.trim()); return; }
+  const teachMatch = raw.match(/^\s*teach\s*:\s*(.+)$/i);
+  if (teachMatch) { saveLearned(lastUnknown, teachMatch[1].trim()); return; }
+  if (/^ teach me $|^ teach $/.test(text)) {
+    if (lastUnknown) { waitingFor = "teach"; think("Teach mode", [lastUnknown], "Wait for the new answer"); botSay("Great! ✍️ What should I answer when someone asks “" + lastUnknown + "”? Type the answer."); setChips([]); }
+    else { think("Teach mode", [], "Nothing to learn yet"); botSay("First ask me something I don't know. Then tap “Teach me” and give me the answer. 📚"); }
+    return;
+  }
+
   // a) Safety first.
   const danger = SAFETY_WORDS.filter((w) => text.includes(" " + w));
   if (danger.length) {
@@ -711,7 +819,8 @@ function reply(raw) {
     if (/^ (hi|hello|hey|salam|assalam|aoa|assalam o alaikum) $/.test(text)) { think("Greeting", [text.trim()], "Still need a name, ask again"); botSay("Hello! 👋 What's your name?"); return; }
     const name = raw.replace(/\b(my name is|call me|i am|i'm|mera naam|hai)\b/gi, "").replace(/[^\p{L} ]/gu, "").trim().split(/\s+/)[0] || "friend";
     P.name = name.charAt(0).toUpperCase() + name.slice(1); save(); waitingFor = null;
-    think("Name", [P.name], "Remember the name in memory");
+    const extra = learnFacts(text);
+    think("Name", [P.name].concat(extra), "Remember the name in memory");
     botSay("Nice to meet you, {name}! 🤖 I'm your fitness buddy. I can give tips, count water, track exercise, sleep and meals, coach workouts and quiz you. What first?", { mood: "party" });
     setChips(DEFAULT_CHIPS);
     return;
@@ -720,8 +829,27 @@ function reply(raw) {
   if (waitingFor === "mood") { waitingFor = null; if (setTodayMood(text, raw)) return; }
   if (quizItem && /^ [abc] $/.test(text)) { checkQuiz(text.trim()); return; }
 
-  // c) Actions with numbers.
-  if (/my name is|call me|mera naam/.test(text)) { waitingFor = "name"; reply(raw); return; }
+  // c) MEMORY: answer questions about the student, forget things, or learn new facts.
+  const recall = recallMemory(text);
+  if (recall) { think("Memory question", [recall.clue], "Look it up in FitFlex's memory"); botSay(recall.answer, { mood: recall.mood || "happy" }); return; }
+  const forgot = forgetMemory(text);
+  if (forgot) { think("Forget", [forgot], "Delete it from memory"); botSay("🗑️ Done. I forgot your " + forgot + "."); return; }
+  if (/my name is|call me|mera naam/.test(text) && !/\b(what|whats|what's|kya)\b/.test(text)) { waitingFor = "name"; reply(raw); return; }
+  const facts = learnFacts(text);
+  if (facts.length) {
+    think("Remember facts", facts, "Save to long-term memory, +5 XP");
+    addXP(5); save(); renderAll();
+    botSay("🧠 Got it, {name}! I'll remember: " + facts.join(", ") + ".\nAsk me “what do you know about me?” anytime.", { mood: "party" });
+    return;
+  }
+  // Follow-up questions use the conversation memory (the last topic).
+  if (lastTopic && /^ (tell me more|more|why|explain|explain more|and|really|aur batao|or batao|more please|what else|go on|another|another one|one more) $/.test(text)) {
+    think("Follow-up", [text.trim(), "last topic: " + lastTopic.topic], "Continue the last topic");
+    if (lastTopic.answers.length > 1) answerTopic(lastTopic); else botSay("💡 Here's one more tip: " + pick(TIPS));
+    return;
+  }
+
+  // d) Actions with numbers.
 
   const isQuestion = /\b(how|should|what|why|much|many|need|kitna|kitne|kya)\b/.test(text);
   if (!isQuestion && /\b(drank|had|finished|piya|pi|pee|piye)\b/.test(text) && /\b(water|glass|glasses|bottle|bottles|pani|paani|cup|cups|glas)\b/.test(text)) {
@@ -730,7 +858,7 @@ function reply(raw) {
     think("Log water", ["drank", glasses + " glass" + (glasses > 1 ? "es" : "")], "Add " + glasses + " to the water counter, +" + glasses * 5 + " XP");
     addWater(glasses);
     const w = today().water;
-    botSay(w >= 8 ? "🎉 " + w + " glasses! You're super hydrated, {name}!" : "Great! 💧 That's " + w + " of 8 glasses today. " + (8 - w) + " to go!", { mood: w >= 8 ? "party" : "happy" });
+    botSay(w >= 8 ? "🎉 " + w + " glasses! You're super hydrated, {name}!" : "Great! 💧 You've had " + w + " of 8 glasses today (" + w * 250 + " ml). " + (8 - w) + " to go!", { mood: w >= 8 ? "party" : "happy" });
     return;
   }
 
@@ -778,21 +906,172 @@ function reply(raw) {
   if (cmd(/\b(quiz|test me|question)\b/, "Quiz", (c, i) => { think(i, [c], "Ask a random quiz question"); askQuiz(); })) return;
   if (cmd(/\b(progress|score|stats|report|how am i doing)\b/, "Progress report", (c, i) => { think(i, [c], "Read today's data"); botSay(progressReport()); })) return;
   if (cmd(/\b(badges?|level|xp|points|achievements?)\b/, "Badges", (c, i) => { think(i, [c], "Show level and badges"); botSay(badgeReport()); })) return;
-  if (cmd(/\b(mood|feeling|feel)\b/, "Mood check", (c, i) => { think(i, [c], "Ask how the student feels"); askMood(); })) return;
+  if (cmd(/\b(mood|feeling|feel)\b/, "Mood check", (c, i) => {
+    if (setTodayMood(text)) return;                       // "I feel great" → save the mood directly
+    const top = scoreTopics(text, words)[0];
+    if (top.score >= 0.9) { think(top.item.topic, top.hits.map((h) => h.clue), "Reply from the " + top.item.topic + " topic"); answerTopic(top.item); return; }
+    think(i, [c], "Ask how the student feels"); askMood();
+  })) return;
 
-  // e) Topic matching: the topic with the highest score wins.
+  // e) Answers that users taught FitFlex.
+  const taught = findLearned(words);
+  if (taught) { think("Learned answer", taught.words, "Use an answer a user taught me", 90); botSay("📚 " + taught.a + "\n(I learned this from a user.)"); return; }
+
+  // f) Topic matching: the topic with the highest score wins.
   const ranked = scoreTopics(text, words);
   const best = ranked[0], second = ranked[1];
-  if (best.score > 0) {
-    const conf = Math.round((100 * best.score) / (best.score + second.score + 0.5));
+  const conf = Math.round((100 * best.score) / (best.score + second.score + 0.5));
+  if (best.score >= 0.6 && best.score > second.score) {   // a clear winner (typos allowed)
     think(best.item.topic, best.hits.map((h) => h.clue), "Reply from the " + best.item.topic + " topic" + (second.score ? " (beat " + second.item.topic + ")" : ""), conf);
-    botSay(pick(best.item.answers));
+    answerTopic(best.item);
+    return;
+  }
+  if (best.score > 0) {   // two topics tie: ask instead of guessing wrong
+    const label = (t) => "Tell me about " + (t.keywords.find((k) => !k.includes(" ")) || t.keywords[0]);
+    think("Not sure", best.hits.map((h) => h.clue), "Ask: did you mean " + best.item.topic + "?", conf);
+    lastUnknown = raw.trim();
+    botSay("I'm not sure I understood. 🤔 Did you mean " + best.item.topic.toLowerCase() + "?", { mood: "think" });
+    setChips([label(best.item)].concat(second.score ? [label(second.item)] : [], ["✍️ Teach me"]));
     return;
   }
 
-  // f) Nothing matched.
-  think("Unknown", [], "Ask the student to try another topic", 0);
-  botSay("Hmm, I'm still learning that one! 🤔 Try water, exercise, food, sleep, screens or stress, or type “help”.", { mood: "worried" });
+  // g) Nothing matched: offer to learn.
+  lastUnknown = raw.trim();
+  think("Unknown", [], "Offer to learn a new answer", 0);
+  botSay("I don't know that one yet, {name}. 🤔 You can teach me! Tap “Teach me” and type the answer, or ask me about water, exercise, food, sleep or stress.", { mood: "worried" });
+  setChips(["✍️ Teach me", "💡 Tip", "😂 Tell me a joke", "❓ Quiz"]);
+}
+
+// ---------- 7b. Memory: facts about the student ----------
+let lastTopic = null, lastAnswer = "", lastUnknown = "";
+function answerTopic(item) {
+  const options = item.answers.filter((a) => a !== lastAnswer);
+  let ans = pick(options.length ? options : item.answers);
+  lastTopic = item; lastAnswer = ans;
+  const M = P.memory;   // personalise the answer with what FitFlex remembers
+  if (["Exercise", "Sports", "Motivation"].includes(item.topic) && M.favs.sport) ans += "\n⭐ You told me you love " + M.favs.sport + ". 30 minutes of it counts toward your goal!";
+  if (["Food", "Cheat day", "Fast food", "Protein"].includes(item.topic) && M.allergy) ans += "\n⚠️ Remember, you're allergic to " + M.allergy + ".";
+  if (item.topic === "Food" && M.favs.fruit) ans += "\n🍎 Your favourite fruit, " + M.favs.fruit + ", makes a great snack!";
+  if (item.topic === "Motivation" && M.goal) ans += "\n🎯 Remember your goal: " + M.goal + "!";
+  botSay(ans);
+  setChips(["➕ Tell me more", "💡 Tip", "❓ Quiz", "📊 Progress"]);
+}
+
+function learnFacts(text) {
+  const M = P.memory, got = [], t = text.trim();
+  if (/\b(what|how|which|where|who|why|kya|kitna)\b/.test(t)) return got;   // questions are not facts
+  let m;
+  if ((m = t.match(/\b(?:i am|i'm|im|my age is|meri umar)\s+(\d{1,2})\b/)) && +m[1] >= 5 && +m[1] <= 19) { M.age = +m[1]; got.push("age " + m[1]); }
+  if ((m = t.match(/\b(?:i am|i'm|im|i study|i read|i go to)\s+in\s+(?:grade|class)\s+(\d{1,2})\b/)) || (m = t.match(/\bmy (?:grade|class) is\s+(\d{1,2})\b/))) { M.grade = m[1]; got.push("grade " + m[1]); }
+  if ((m = t.match(/\bmy (?:favourite|favorite|fav|favourit) (sport|game|food|fruit|exercise|colou?r|drink|subject|vegetable|snack|activity|player|team|dish) is ([a-z0-9' ]{2,40})$/))) {
+    const cat = m[1].replace("color", "colour"); M.favs[cat] = m[2].trim(); got.push("favourite " + cat + ": " + m[2].trim());
+  }
+  if ((m = t.match(/\bi (?:really )?(?:like|love|enjoy) (?:playing |to play |doing |going )?([a-z]+)/)) && findActivity(" " + m[1] + " ") && !M.favs.sport) {
+    M.favs.sport = m[1]; got.push("you love " + m[1]);
+  }
+  if ((m = t.match(/\b(?:i am|i'm|im) allergic to ([a-z ]{2,30})$/))) { M.allergy = m[1].trim(); got.push("allergic to " + M.allergy); }
+  if ((m = t.match(/\bmy goal is (?:to )?([a-z0-9' ]{3,60})$/))) { M.goal = m[1].trim(); got.push("goal: " + M.goal); }
+  if ((m = t.match(/\bi live in ([a-z ]{2,30})$/)) || (m = t.match(/\bi am from ([a-z ]{2,30})$/))) { M.city = m[1].trim(); got.push("you live in " + M.city); }
+  if ((m = t.match(/^remember (?:that )?(.{3,80})$/))) { M.notes.push(m[1].trim()); M.notes = M.notes.slice(-10); got.push("“" + m[1].trim() + "”"); }
+  return got;
+}
+
+function recallMemory(text) {
+  const M = P.memory, d = today(), has = (re) => re.test(text);
+  const notQ = /\b(should|need|best|good)\b/.test(text);
+  if (has(/\b(what's|whats|what is|tell me|do you know|do you remember|say|remember) my name\b|\bwho am i\b|\bmera naam kya\b|\bmy name kya\b|\bknow my name\b/)) {
+    if (P.name) return { clue: "name", answer: "Your name is " + P.name + "! 😊 I always remember my friends.", mood: "party" };
+    waitingFor = "name"; return { clue: "name (not saved)", answer: "You haven't told me your name yet. What is it?" };
+  }
+  if (has(/\bhow old am i\b|\b(what's|whats|what is) my age\b|\bmeri umar kya\b|\bmy age\b.*\?/)) return { clue: "age", answer: M.age ? "You are " + M.age + " years old. 🎂" : "I don't know your age yet. Tell me: “I am 13 years old”." };
+  if (has(/\b(what|which) (grade|class) (am i|do i)\b|\b(what's|whats|what is) my (grade|class)\b/)) return { clue: "grade", answer: M.grade ? "You're in grade " + M.grade + ". 🏫" : "Tell me your grade, like “I am in grade 7”." };
+  let m = text.match(/\b(?:what's|whats|what is|which is|do you know|do you remember|tell me) my (?:favourite|favorite|fav) ([a-z]+)/);
+  if (m) { const cat = m[1].replace("color", "colour"); return { clue: "favourite " + cat, answer: M.favs[cat] ? "Your favourite " + cat + " is " + M.favs[cat] + "! ⭐" : "You haven't told me your favourite " + cat + " yet. Say “my favourite " + cat + " is …”." }; }
+  if (has(/\bwhat am i allergic\b|\bam i allergic\b|\b(what's|whats|what is) my allergy\b/)) return { clue: "allergy", answer: M.allergy ? "You told me you're allergic to " + M.allergy + ". ⚠️ Always check food labels!" : "You haven't told me about any allergy." };
+  if (has(/\b(what's|whats|what is) my goal\b/)) return { clue: "goal", answer: M.goal ? "Your goal is to " + M.goal.replace(/^to /, "") + ". 🎯 You can do it!" : "You haven't set a goal yet. Say “my goal is to run 2 km”." };
+  if (has(/\bwhere do i live\b|\bwhere am i from\b/)) return { clue: "city", answer: M.city ? "You live in " + M.city + ". 📍" : "You haven't told me where you live." };
+  if (has(/\bwhat do you (know|remember) about me\b|\bwhat do you remember\b|\btell me about (me|myself)\b|\bmy (profile|memory)\b|\byour memory\b|\bwhat do you know\b/)) return { clue: "everything", answer: memorySummary() };
+  if (!notQ && has(/\bhow (much|many) (water|glass|glasses|cups)\b|\bhow many glasses\b|\bkitna pani\b|\bkitne glass\b/))
+    return { clue: "water today", answer: d.water ? "💧 You drank " + d.water + " glass" + (d.water > 1 ? "es" : "") + " of water today (" + d.water * 250 + " ml). " + (d.water >= 8 ? "Goal reached! 🎉" : (8 - d.water) + " more to reach 8.") : "💧 You haven't logged any water today. Drink a glass and tell me!" };
+  if (!notQ && has(/\bhow (much|many|long) (exercise|minutes|activity|did i (exercise|play|move|run|walk))\b|\bhow active\b|\bmy (exercise|activity) today\b/)) {
+    const mins = minutesToday();
+    return { clue: "exercise today", answer: mins ? "🏃 Today you were active for " + mins + " minutes:\n" + d.moves.map((x) => "• " + x.activity + ": " + x.minutes + " min").join("\n") + "\n" + (mins >= 60 ? "Goal done! 🏆" : (60 - mins) + " minutes to go.") : "🏃 No exercise logged yet today. Try “I walked for 15 minutes”." };
+  }
+  if (has(/\bhow (much|long|many hours) did i sleep\b/)) return { clue: "sleep", answer: d.sleep != null ? "😴 You slept " + d.sleep + " hours last night." : "You haven't told me how long you slept. Say “I slept 9 hours”." };
+  if (has(/\bwhat did i (eat|have)\b/)) {
+    const meals = d.meals || [];
+    return { clue: "meals today", answer: meals.length ? "🍽️ Today you ate:\n" + meals.map((x) => "• " + x.foods.join(", ") + " (" + "⭐".repeat(x.stars) + ")").join("\n") : "You haven't told me what you ate today. Try “I ate roti and daal”." };
+  }
+  if (has(/\b(how is|how was|what is|what's|whats) my mood\b/)) return { clue: "mood", answer: d.mood ? "Today you said you feel " + d.mood + "." : "You haven't done a mood check today. Tap “Mood check”." };
+  if (has(/\bwhat (did|was) (i|my) (say|ask|last|question|message)\b|\bwhat did we talk about\b/)) {
+    const mine = data.chat.filter((x) => x.w === "user");
+    const prev = mine[mine.length - 2];
+    return { clue: "chat history", answer: prev ? "Before this, you said: “" + prev.t + "”. I remember our whole chat! 💬" : "This is the first thing you asked me!" };
+  }
+  return null;
+}
+
+function memoryEntries() {
+  const M = P.memory, list = [];
+  if (P.name) list.push(["name", "👤 Name", P.name]);
+  if (M.age) list.push(["age", "🎂 Age", M.age + " years"]);
+  if (M.grade) list.push(["grade", "🏫 Grade", M.grade]);
+  for (const k in M.favs) list.push(["fav:" + k, "⭐ Favourite " + k, M.favs[k]]);
+  if (M.allergy) list.push(["allergy", "⚠️ Allergy", M.allergy]);
+  if (M.goal) list.push(["goal", "🎯 Goal", M.goal]);
+  if (M.city) list.push(["city", "📍 Lives in", M.city]);
+  M.notes.forEach((n, i) => list.push(["note:" + i, "📝 Note", n]));
+  return list;
+}
+function memorySummary() {
+  const list = memoryEntries(), d = today();
+  if (!list.length) return "I don't know much about you yet! 🧠 Tell me things like “my name is…”, “I am 13 years old” or “my favourite sport is cricket”.";
+  return "🧠 Here's what I remember about you:\n" + list.map(([, l, v]) => "• " + l + ": " + v).join("\n") +
+    "\n• Today: " + d.water + " glasses of water, " + minutesToday() + " active minutes\n• Level " + (Math.floor(P.xp / 100) + 1) + ", " + P.badges.length + " badges";
+}
+function forgetKey(key) {
+  const M = P.memory;
+  if (key === "name") P.name = "";
+  else if (key.startsWith("fav:")) delete M.favs[key.slice(4)];
+  else if (key.startsWith("note:")) M.notes.splice(+key.slice(5), 1);
+  else if (key === "favourites") M.favs = {};
+  else if (key === "notes") M.notes = [];
+  else M[key] = key === "age" || key === "grade" ? null : "";
+  save(); renderAll();
+}
+function forgetMemory(text) {
+  const m = text.match(/\bforget (?:my |about my |all about )?(name|age|grade|class|allergy|goal|city|notes?|favourites?|favorites?|everything|me)\b/);
+  if (!m) return null;
+  let k = m[1];
+  if (k === "everything" || k === "me") {
+    P.memory = { age: null, grade: null, favs: {}, allergy: "", goal: "", city: "", notes: [] }; data.learned = [];
+    save(); renderAll(); return "details (name kept so I can still greet you)";
+  }
+  k = { class: "grade", note: "notes", favourite: "favourites", favorite: "favourites", favorites: "favourites" }[k] || k;
+  forgetKey(k);
+  return k;
+}
+
+// Teaching: users can add new answers, saved in memory.
+function saveLearned(question, answer) {
+  if (!question) { botSay("First ask me something I don't know, then teach me the answer. 📚"); return; }
+  if (!answer || answer.length < 2) { botSay("That answer is too short. Try again with “teach: your answer”."); return; }
+  const words = clean(question).trim().split(" ").filter((w) => w && !STOP.has(w));
+  data.learned.push({ q: question, words, a: answer });
+  lastUnknown = ""; addXP(10); save(); renderAll();
+  showThinking({ said: answer, words, intent: "Learning", clues: words, action: "Saved a new answer in memory (+10 XP)", confidence: 100 });
+  botSay("✅ Thank you, {name}! I learned something new. 🧠\nNext time someone asks “" + question + "”, I'll answer:\n“" + answer + "”", { mood: "party" });
+  setChips(DEFAULT_CHIPS);
+}
+function findLearned(words) {
+  const content = words.filter((w) => !STOP.has(w));
+  if (!content.length) return null;
+  let best = null, bestHits = 0;
+  data.learned.forEach((item) => {
+    const hits = item.words.filter((w) => content.includes(w)).length;
+    if (hits >= Math.max(1, Math.ceil(item.words.length * 0.6)) && hits > bestHits) { best = item; bestHits = hits; }
+  });
+  return best;
 }
 
 // ---------- 8. Features ----------
@@ -829,6 +1108,9 @@ function mealCheck(foods) {
   if (!groups.fruitveg.length) missing.push("a fruit or salad");
   if (!groups.protein.length) missing.push("protein like daal, egg or dahi");
   lines.push(missing.length ? "Next time add " + missing.join(" and ") + "." : "Balanced plate. Great choice, {name}!");
+  const allergy = P.memory.allergy;
+  if (allergy && foods.some(({ f }) => allergy.includes(f) || f.includes(allergy))) lines.push("⚠️ Careful! You told me you're allergic to " + allergy + ".");
+  const d = today(); d.meals = (d.meals || []).concat({ foods: foods.map((x) => x.f), stars, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
   showThinking({ said: $("brainList").dataset.last || "", words: foods.map((x) => x.f), intent: "Meal checker", clues: foods.map((x) => x.f + " = " + x.group), action: "Score the meal by food groups: " + stars + "/5 stars", confidence: 100 });
   addXP(5);
   botSay(lines.join("\n"), { mood: stars >= 4 ? "party" : "happy" });
@@ -991,7 +1273,8 @@ function renderAll() {
     const b = document.createElement("button");
     b.type = "button"; b.className = "glass" + (i < d.water ? " full" : "");
     b.setAttribute("aria-label", "Glass " + (i + 1) + (i < d.water ? ", drunk" : ""));
-    b.onclick = () => addWater(i < d.water ? -1 : 1);
+    b.textContent = i + 1;
+    b.onclick = () => tapGlass(i);
     g.appendChild(b);
   }
   $("waterCount").textContent = d.water + " / 8 glasses";
@@ -1007,6 +1290,14 @@ function renderAll() {
   $("sleepVal").textContent = d.sleep == null ? "–" : d.sleep + " h";
   $("moodVal").textContent = d.mood || "–";
 
+  const ml = d.water * 250;
+  $("waterBig").textContent = d.water === 0 ? "You haven't had any water yet today. Tap glass 1!" :
+    d.water >= 8 ? "🎉 You drank " + d.water + " glasses (" + ml + " ml) today. Goal reached!" :
+    "You drank " + d.water + " glass" + (d.water > 1 ? "es" : "") + " (" + ml + " ml) today. " + (8 - d.water) + " more to go!";
+  $("qWater").textContent = d.water + " / 8"; $("qMove").textContent = mins + " / 60";
+  $("qScore").textContent = s.total; $("qName").textContent = P.name || "–";
+  renderMemory();
+
   drawChart();
   const bx = $("badges"); bx.innerHTML = "";
   BADGES.forEach((b) => {
@@ -1018,6 +1309,39 @@ function renderAll() {
     bx.appendChild(el);
   });
   $("badgeCount").textContent = P.badges.length + " / " + BADGES.length;
+}
+function tapGlass(i) {
+  if (i < today().water) {
+    addWater(-1);
+    botSay("↩️ Removed a glass. You've had " + today().water + " of 8 glasses today.", { fast: true });
+  } else {
+    addWater(1);
+    const w = today().water;
+    botSay(w >= 8 ? "🎉 Glass " + w + " done! You reached your goal: " + w * 250 + " ml of water today!" : "💧 Glass " + w + " of 8 done! That's " + w * 250 + " ml. " + (8 - w) + " to go.", { fast: true, mood: w >= 8 ? "party" : "happy" });
+  }
+}
+function renderMemory() {
+  const ul = $("memList"); ul.innerHTML = "";
+  const list = memoryEntries();
+  if (!list.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing yet. Tell me about yourself!"; ul.appendChild(li); }
+  list.forEach(([key, label, val]) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<span><b></b> </span><button class=\"forget\" type=\"button\">✕</button>";
+    li.querySelector("b").textContent = label + ":"; li.firstChild.append(String(val));
+    li.lastChild.setAttribute("aria-label", "Forget " + label);
+    li.lastChild.onclick = () => forgetKey(key);
+    ul.appendChild(li);
+  });
+  $("memCount").textContent = list.length + " fact" + (list.length === 1 ? "" : "s");
+  const ll = $("learnList"); ll.innerHTML = "";
+  data.learned.forEach((item, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<span></span><button class=\"forget\" type=\"button\" aria-label=\"Delete this answer\">✕</button>";
+    li.firstChild.textContent = "“" + item.q + "” → " + item.a;
+    li.lastChild.onclick = () => { data.learned.splice(i, 1); save(); renderAll(); };
+    ll.appendChild(li);
+  });
+  $("learnBox").hidden = !data.learned.length;
 }
 function drawChart() {
   const days = [];
@@ -1041,6 +1365,7 @@ function handleUser(text) {
   text = text.replace(/^[^\p{L}\p{N}]+/u, "").trim();   // drop emoji from chip labels
   if (!text) return;
   if (/^another quiz$/i.test(text)) text = "quiz";
+  if (/^tell me a joke$/i.test(text)) text = "joke";
   addMessage(text, "user");
   $("brainList").dataset.last = text;
   reply(text);
@@ -1109,9 +1434,10 @@ if (SR) {
 // Start!
 setMood("happy");
 renderAll();
+data.chat.forEach((m) => addMessage(m.t, m.w, m.c, true));   // restore the saved conversation
 if (P.name) {
   setChips(DEFAULT_CHIPS);
-  addMessage("Welcome back, " + P.name + "! 🤖 " + (today().water || today().moves.length ? "Type “progress” to see your Health Score." : "New day, new goals. Start with a glass of water?"), "bot");
+  addMessage("Welcome back, " + P.name + "! 🤖 I remember you. " + (today().water || today().moves.length ? "Type “progress” to see your Health Score." : "New day, new goals. Start with a glass of water?"), "bot", "", true);
 } else {
   addMessage("Hi! I'm FitFlex AI 🤖, your smart fitness buddy for SDG 3. What's your name?", "bot");
   waitingFor = "name";

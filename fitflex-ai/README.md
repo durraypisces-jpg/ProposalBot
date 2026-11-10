@@ -19,12 +19,16 @@ robot's head. The animated face reacts to every message.
 
 | Feature | What it does | Try |
 |---|---|---|
+| 🧠 Long-term memory | Remembers name, age, grade, favourites, allergy, goal and city; answers questions about them; can forget on request | `I am 13 years old`, `what is my name?`, `what do you know about me?`, `forget my age` |
+| 💬 Conversation memory | Chat is saved and restored; follow-up questions continue the last topic | `tell me more`, `what did I say?` |
+| 📚 Learns from users | When it doesn't know something, students can teach it a new answer | Ask anything new → **Teach me** |
+| ⭐ Personal answers | Uses memory in replies: favourite sport, allergy warnings in meal checks, sleep goal by age | `I ate bread and peanuts` |
 | 🤖 Emotional robot face | Changes expression: happy, thinking, concerned, celebrating. Mouth moves when talking | Any message |
 | 🧠 Brain view | Shows judges *how* the AI understood each message: cleaned words, clues, topic, confidence, action | Any message |
 | 🔊 Voice + 🎤 microphone | FitFlex reads replies aloud; students can speak instead of typing (Chrome) | Voice button / 🎤 |
 | 🗣️ Roman Urdu | Understands mixed Urdu-English | `maine 2 glass pani piya`, `mujhe neend nahi aati` |
 | ✏️ Typo fixing | Understands misspelled words | `excercise`, `slep` |
-| 💧 Water tracker | 8-glass counter; a bottle counts as 2 glasses | `I drank 3 glasses`, or tap a glass |
+| 💧 Water tracker | Numbered glasses, "You drank 3 glasses (750 ml) today" text, always-visible stats bar; a bottle counts as 2 glasses | `I drank 3 glasses`, or tap a glass |
 | 🏃 Exercise tracker | Logs activity toward 60 min/day; understands hours | `I played cricket for half an hour` |
 | 🏋️ Workout Coach | Guided routine with timer, voice and beeps (Quick 1 min / Full 5 min) | `start workout` |
 | 🍽️ Meal checker | Sorts foods into groups, rates the meal with stars, suggests what to add | `I ate roti, daal and an apple` |
@@ -34,6 +38,7 @@ robot's head. The animated face reacts to every message.
 | 📈 Weekly chart | 7-day active minutes and water | "Load demo week" for presenting |
 | 🎮 XP, levels, badges, streaks | Points for healthy actions, 8 badges, 6 levels | `badges` |
 | ⏰ Reminders | Water and move-break reminders with beeps and pop-up alerts | `remind me every 30 minutes` |
+| 🗂️ 30+ health topics | Cheat day, fast food, energy drinks, protein, bones & growing, heart, roza, hot weather, smoking, eyes, jokes, fun facts and more | `can I have a cheat day?` |
 | ❓ Health quiz | 10 questions with explanations | `quiz` |
 | ⚠️ Safety rule | Words like *pain, fever, bullied, sad, dard* → "talk to a trusted adult". Never gives medical advice | `I have a fever` |
 
@@ -50,6 +55,7 @@ robot's head. The animated face reacts to every message.
 8. **Added smart extras:** Health Score, Workout Coach timer, meal checker, voice, badges and a chart.
 9. **Tested it:** tried many messages (English, Roman Urdu, typos, tricky ones), fixed mistakes.
 10. **Made it explainable:** added the Brain view so anyone can see how the AI decides.
+11. **Gave it memory:** it saves facts about the student, the whole chat, and answers users teach it.
 
 ## How the AI works (for the presentation)
 
@@ -61,7 +67,9 @@ FitFlex uses **Natural Language Processing (NLP)** with rules:
 4. **Entity extraction** – finds numbers and units (“20 minutes”, “half an hour”, “2 glasses”), foods and activities.
 5. **Intent scoring** – each topic gets points for matching keywords; typos are fixed with
    *edit distance* (how many letters differ). The highest score wins, and confidence is shown.
-6. **Response + action** – reply, update the dashboard, give XP, change the robot's face, speak.
+6. **Memory** – facts about the student are saved and reused (name, age, allergy…); the last topic is kept for follow-ups.
+7. **Learning** – unknown questions can be taught; the new answer is saved and matched next time.
+8. **Response + action** – reply, update the dashboard, give XP, change the robot's face, speak.
 
 Limitation (judges like honesty): it only understands what it was taught. Real AI like ChatGPT
 learns language from billions of sentences. Future version: connect a real AI model, add Urdu replies.
@@ -71,7 +79,7 @@ learns language from billions of sentences. Future version: connect a real AI mo
 **2-minute demo script**
 1. *Problem (20 s):* "Many students don't drink enough water, don't move enough and skip breakfast."
 2. *Solution (10 s):* "FitFlex AI is a smart fitness buddy that makes healthy habits fun."
-3. *Live demo (60 s):* turn on Voice → type your name → `maine 2 glass pani piya` →
+3. *Live demo (60 s):* turn on Voice → type your name → `I am 13 years old` → `I am allergic to peanuts` → `what do you know about me?` → `maine 2 glass pani piya` →
    `I ate chips and pepsi` (1 star) then `I ate roti, daal and an apple` (5 stars + badge) →
    Workout Coach → Quick → show the Brain view → `I have a fever` (safety) → `progress`.
 4. *Impact (20 s):* "It works offline and free, so every school can use it. It protects privacy because data stays on the device."
